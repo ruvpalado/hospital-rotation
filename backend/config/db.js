@@ -1,6 +1,20 @@
 require('dotenv').config();
 const { Sequelize } = require('sequelize');
 
+// Database connection is fully configured via environment variables:
+//   DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
+// See /backend/.env.example for local development defaults.
+//
+// On Railway, these are automatically provided when the backend service is
+// linked to a MySQL service via reference variables, e.g.:
+//   DB_HOST=${{ MySQL.MYSQLHOST }}
+//   DB_PORT=${{ MySQL.MYSQLPORT }}
+//   DB_NAME=${{ MySQL.MYSQLDATABASE }}
+//   DB_USER=${{ MySQL.MYSQLUSER }}
+//   DB_PASSWORD=${{ MySQL.MYSQLPASSWORD }}
+// Without these set, the app falls back to localhost:3306 and will crash with
+// ECONNREFUSED if no local MySQL instance is running.
+//
 // Some managed MySQL hosts (Railway, PlanetScale, etc.) require SSL for public
 // connections. Set DB_SSL=true in .env to enable it without touching this file.
 const dialectOptions = process.env.DB_SSL === 'true'
