@@ -20,10 +20,22 @@ const blockRoutes = require('./routes/blocks');
 
 const app = express();
 app.use(helmet());
-// In production, restrict to the deployed frontend's origin via FRONTEND_URL.
-// Falls back to allow-all so local development keeps working out of the box.
-const allowedOrigin = process.env.FRONTEND_URL || '*';
-app.use(cors({ origin: allowedOrigin }));
+// In production, restrict to the deployed frontend origins via FRONTEND_URLS
+// (comma-separated). Falls back to allow-all so local development keeps
+// working out of the box.
+const allowedOrigins = process.env.FRONTEND_URLS 
+  ? process.env.FRONTEND_URLS.split(',').map(url => url.trim())
+  : ['*'];
+
+app.use(cors({ 
+  origin: (origin, callback) => {
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+}));
 app.use(express.json());
 app.use(morgan('dev'));
 
