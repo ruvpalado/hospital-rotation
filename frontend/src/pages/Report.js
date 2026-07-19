@@ -20,12 +20,15 @@ import './dashboards/ChartSetup';
  *     Notification Delivery Rate
  * Uses the browser's native print dialog (Save as PDF) rather than a new
  * backend dependency, since this is the same data already served to the
- * dashboards -- just laid out for printing. Each section pairs the numeric
- * rows with the chart type that best fits the data shape: a horizontal bar
- * for comparing several 0-100% metrics side by side, a plain bar for
- * categorical/count data (per-site, per-department), and a doughnut for a
- * single metric that is naturally "part completed / whole" (e.g. an
- * individual physician's curriculum progress).
+ * dashboards -- just laid out for printing.
+ *
+ * IMPORTANT: every row/chart shown on a role's live Dashboard is reproduced
+ * here (same underlying figures, same breakdown-by-department/site/physician
+ * charts), so the printed report is never missing something the user can see
+ * on screen. Extra KPIs beyond what the dashboard shows (e.g. Audit Log
+ * Completeness for Admin, Notification Delivery Rate for Physician) are kept
+ * too, since the project spec calls for them at that role's level even
+ * though the live dashboard chart area doesn't have room for every metric.
  */
 export default function Report() {
   const { user } = useAuth();
@@ -98,8 +101,6 @@ function ChartBox({ height = 220, children }) {
   return <div className="chart-box" style={{ height }}>{children}</div>;
 }
 
-const legendOff = { plugins: { legend: { display: false } } };
-
 const pctHorizontalOptions = {
   indexAxis: 'y',
   responsive: true,
@@ -153,6 +154,37 @@ function AdminReport({ data }) {
     datasets: [{ label: '% filled', data: data.departmentCapacityUtilization.map((c) => c.pct), backgroundColor: '#D95F4A' }],
   };
 
+  // Same countsByDept breakdown the Admin Dashboard shows as a doughnut.
+  const deptAllocData = {
+    labels: Object.keys(data.departmentAllocationBalance.countsByDept),
+    datasets: [{
+      data: Object.values(data.departmentAllocationBalance.countsByDept),
+      backgroundColor: Object.keys(data.departmentAllocationBalance.countsByDept).map((_, i) => `hsl(${(i * 37) % 360},65%,55%)`),
+    }],
+  };
+
+  // Same conflict count the Admin Dashboard shows as a KPI card, visualized
+  // against total assignments for context.
+  const totalAssignments = data.rotationBlockCompletion.total;
+  const conflictData = {
+    labels: ['Conflicting', 'Clean'],
+    datasets: [{
+      data: [data.conflictFreeScheduling.conflicts, Math.max(totalAssignments - data.conflictFreeScheduling.conflicts, 0)],
+      backgroundColor: ['#D95F4A', '#7FB37F'],
+    }],
+  };
+
+  // Same charts the Admin Dashboard shows: Critical Unit Coverage and Site
+  // Rotation Compliance (both Bar charts, by department / by site).
+  const criticalUnitData = {
+    labels: data.criticalUnitCoverage.map((c) => c.department),
+    datasets: [{ label: '% of blocks covered', data: data.criticalUnitCoverage.map((c) => c.pct), backgroundColor: '#D95F4A' }],
+  };
+  const siteComplianceData = {
+    labels: data.siteRotationCompliance.map((c) => c.site),
+    datasets: [{ label: '% compliant', data: data.siteRotationCompliance.map((c) => c.pct), backgroundColor: '#7FB37F' }],
+  };
+
   return (
     <div>
       <h5 className="report-section-title">Overall Hospital Performance &amp; Compliance</h5>
@@ -167,6 +199,10 @@ function AdminReport({ data }) {
         subtext={`${data.notificationSuccessRate.succeeded}/${data.notificationSuccessRate.total} notifications`} />
       <Row label="Audit Log Completeness" value={`${data.auditLogCompleteness.pct}%`}
         subtext={`${data.auditLogCompleteness.attributed}/${data.auditLogCompleteness.total} log entries properly attributed`} />
+      <Row label="Department Allocation Balance" value={`${data.departmentAllocationBalance.balancePct}%`}
+        subtext="100% = perfectly even distribution across departments" />
+      <Row label="Conflict-Free Scheduling" value={`${data.conflictFreeScheduling.conflicts} conflicts`}
+        subtext="overlapping assignments for the same physician" />
 
       <h6 className="mt-4 mb-2">Key Compliance &amp; Coverage Metrics</h6>
       <ChartBox height={200}><Bar data={metricsBarData} options={pctHorizontalOptions} /></ChartBox>
@@ -179,6 +215,28 @@ function AdminReport({ data }) {
         <div className="col-md-6">
           <h6 className="mb-2">Department Capacity Utilization (% filled)</h6>
           <ChartBox><Bar data={capacityData} options={pctVerticalOptions} /></ChartBox>
+        </div>
+      </div>
+
+      <div className="row mt-3">
+        <div className="col-md-6">
+          <h6 className="mb-2">Department Allocation Balance — counts by department</h6>
+          <ChartBox><Doughnut data={deptAllocData} options={doughnutOptions} /></ChartBox>
+        </div>
+        <div className="col-md-6">
+          <h6 className="mb-2">Conflict-Free Scheduling</h6>
+          <ChartBox><Doughnut data={conflictData} options={doughnutOptions} /></ChartBox>
+        </div>
+      </div>
+
+      <div className="row mt-3">
+        <div className="col-md-6">
+          <h6 className="mb-2">Critical Unit Coverage (NICU / ICU / Emergency / Research)</h6>
+          <ChartBox><Bar data={criticalUnitData} options={pctVerticalOptions} /></ChartBox>
+        </div>
+        <div className="col-md-6">
+          <h6 className="mb-2">Site Rotation Compliance</h6>
+          <ChartBox><Bar data={siteComplianceData} options={pctVerticalOptions} /></ChartBox>
         </div>
       </div>
     </div>
@@ -215,6 +273,12 @@ function SchedulerReport({ data }) {
     }],
   };
 
+  // Same Department Capacity Utilization chart the Scheduler Dashboard shows.
+  const capacityData = {
+    labels: data.departmentCapacityUtilization.map((c) => `${c.site}/${c.department}`),
+    datasets: [{ label: '% filled', data: data.departmentCapacityUtilization.map((c) => c.pct), backgroundColor: '#4A90D9' }],
+  };
+
   return (
     <div>
       <h5 className="report-section-title">Scheduling Efficiency &amp; Accuracy</h5>
@@ -228,6 +292,8 @@ function SchedulerReport({ data }) {
         subtext={`${data.changeRequestRate.changeRequests}/${data.changeRequestRate.totalAssignments} assignments had a change request`} />
       <Row label="Approval Turnaround Time" value={`${data.approvalTurnaroundTime.avgHours} hours (avg)`}
         subtext={`across ${data.approvalTurnaroundTime.sampleSize} resolved change requests`} />
+      <Row label="Department Capacity Utilization (avg)" value={`${avgPct(data.departmentCapacityUtilization)}%`}
+        subtext={`${data.departmentCapacityUtilization.length} site/department slots tracked`} />
 
       <h6 className="mt-4 mb-2">Block Completion &amp; Change Request Rate</h6>
       <ChartBox height={200}><Bar data={pctData} options={pctHorizontalOptions} /></ChartBox>
@@ -246,6 +312,9 @@ function SchedulerReport({ data }) {
           <ChartBox><Doughnut data={conflictData} options={doughnutOptions} /></ChartBox>
         </div>
       </div>
+
+      <h6 className="mt-4 mb-2">Department Capacity Utilization</h6>
+      <ChartBox height={220}><Bar data={capacityData} options={pctVerticalOptions} /></ChartBox>
     </div>
   );
 }
@@ -263,6 +332,16 @@ function DeptHeadReport({ data }) {
   const turnaroundData = {
     labels: ['Hours (avg)'],
     datasets: [{ label: 'Hours', data: [data.approvalTurnaroundTime.avgHours], backgroundColor: '#8E7CC3' }],
+  };
+
+  // Same two breakdown charts the Department Head Dashboard shows.
+  const deptCountsData = {
+    labels: Object.keys(data.departmentAllocationBalance.countsByDept),
+    datasets: [{ label: 'Assignments', data: Object.values(data.departmentAllocationBalance.countsByDept), backgroundColor: '#4A90D9' }],
+  };
+  const equityCountsData = {
+    labels: data.rotationEquity.counts.map((_, i) => `Phys ${i + 1}`),
+    datasets: [{ label: 'Completed rotations', data: data.rotationEquity.counts, backgroundColor: '#7FB37F' }],
   };
 
   return (
@@ -288,6 +367,17 @@ function DeptHeadReport({ data }) {
         <div className="col-md-4">
           <h6 className="mb-2">Approval Turnaround</h6>
           <ChartBox><Bar data={turnaroundData} options={countBarOptions} /></ChartBox>
+        </div>
+      </div>
+
+      <div className="row mt-3">
+        <div className="col-md-6">
+          <h6 className="mb-2">Department Allocation Balance — counts by department</h6>
+          <ChartBox><Bar data={deptCountsData} options={countBarOptions} /></ChartBox>
+        </div>
+        <div className="col-md-6">
+          <h6 className="mb-2">Rotation Equity — completed rotations per physician</h6>
+          <ChartBox><Bar data={equityCountsData} options={countBarOptions} /></ChartBox>
         </div>
       </div>
     </div>
