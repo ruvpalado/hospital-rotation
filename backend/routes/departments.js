@@ -1,7 +1,8 @@
 const router = require('express').Router();
-const authenticate = require('../middleware/auth');
 const siteController = require('../controllers/siteController');
 
-router.get('/', authenticate, siteController.listDepartments);
+// Public for the same reason as sites.js: the Registration form (pre-login)
+// needs to populate its Department dropdown.
+router.get('/', siteController.listDepartments);
 
 module.exports = router;
