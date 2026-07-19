@@ -10,6 +10,7 @@ import ScheduleViewer from './pages/ScheduleViewer';
 import DepartmentApproval from './pages/DepartmentApproval';
 import NotificationsCenter from './pages/NotificationsCenter';
 import AuditLog from './pages/AuditLog';
+import Report from './pages/Report';
 
 function Layout({ children }) {
   return (
@@ -41,6 +42,9 @@ export default function App() {
           } />
           <Route path="/audit-log" element={
             <RoleBasedRoute allowedRoles={['admin']}><Layout><AuditLog /></Layout></RoleBasedRoute>
+          } />
+          <Route path="/report" element={
+            <RoleBasedRoute><Layout><Report /></Layout></RoleBasedRoute>
           } />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -1,7 +1,7 @@
 const { Op } = require('sequelize');
 const {
   User, Role, Site, Department, SiteDepartment, Block,
-  RotationAssignment, RotationWeek, ChangeRequest, Notification,
+  RotationAssignment, RotationWeek, ChangeRequest, Notification, AuditLog,
 } = require('../models');
 const { isRotationComplete, countAttendedWeeks } = require('../utils/rotationRules');
 
@@ -251,10 +251,24 @@ async function approvalTurnaroundTime() {
   return { avgHours: round(mean(hoursArr)), sampleSize: hoursArr.length };
 }
 
-/** Notification Success/Delivery Rate = sent (or mock_sent) / total notifications * 100 */
+/** 16. Notification Success/Delivery Rate = sent (or mock_sent) / total notifications * 100 */
 async function notificationSuccessRate() {
   const total = await Notification.count();
   const succeeded = await Notification.count({ where: { status: { [Op.in]: ['sent', 'mock_sent'] } } });
+  return { succeeded, total, pct: total > 0 ? round((succeeded / total) * 100) : 0 };
+}
+
+/** 17. Audit Log Completeness = audit log rows with a properly attributed user_id / total rows * 100 */
+async function auditLogCompleteness() {
+  const total = await AuditLog.count();
+  const attributed = await AuditLog.count({ where: { user_id: { [Op.ne]: null } } });
+  return { attributed, total, pct: total > 0 ? round((attributed / total) * 100) : 0 };
+}
+
+/** Notification Delivery Rate for a single physician (used in the Physician-level report) */
+async function physicianNotificationDeliveryRate(physicianId) {
+  const total = await Notification.count({ where: { user_id: physicianId } });
+  const succeeded = await Notification.count({ where: { user_id: physicianId, status: { [Op.in]: ['sent', 'mock_sent'] } } });
   return { succeeded, total, pct: total > 0 ? round((succeeded / total) * 100) : 0 };
 }
 
@@ -279,4 +293,6 @@ module.exports = {
   changeRequestRate,
   approvalTurnaroundTime,
   notificationSuccessRate,
+  auditLogCompleteness,
+  physicianNotificationDeliveryRate,
 };
