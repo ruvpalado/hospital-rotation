@@ -36,6 +36,10 @@ import './dashboards/ChartSetup';
  * (2cm top/bottom, 2.54cm right, 1.5cm left), and #report-root gets its own
  * comfortable padding on screen so the content isn't flush against the
  * browser edges.
+ *
+ * Department Capacity Utilization is charted by site (filled slots /
+ * capacity summed across that site's departments) rather than one bar per
+ * site/department combination, which was too dense to read at a glance.
  */
 export default function Report() {
   const { user } = useAuth();
@@ -164,9 +168,12 @@ function AdminReport({ data }) {
     datasets: [{ label: 'Rotations', data: Object.values(data.siteUtilization), backgroundColor: '#4A90D9' }],
   };
 
+  // Grouped by site (filled slots / capacity summed across that site's
+  // departments) rather than one bar per site/department combination.
+  const capacityBySite = aggregateCapacityBySite(data.departmentCapacityUtilization);
   const capacityData = {
-    labels: data.departmentCapacityUtilization.map((c) => `${c.site}/${c.department}`),
-    datasets: [{ label: '% filled', data: data.departmentCapacityUtilization.map((c) => c.pct), backgroundColor: '#D95F4A' }],
+    labels: capacityBySite.map((c) => c.site),
+    datasets: [{ label: '% filled', data: capacityBySite.map((c) => c.pct), backgroundColor: '#D95F4A' }],
   };
 
   // Same countsByDept breakdown the Admin Dashboard shows as a doughnut.
@@ -213,7 +220,7 @@ function AdminReport({ data }) {
           <ChartBox><Bar data={siteUtilData} options={countBarOptions} /></ChartBox>
         </div>
         <div className="col-md-6">
-          <h6 className="mb-2">Department Capacity Utilization (% filled)</h6>
+          <h6 className="mb-2">Department Capacity Utilization (% filled, by site)</h6>
           <ChartBox><Bar data={capacityData} options={pctVerticalOptions} /></ChartBox>
         </div>
       </div>
@@ -290,10 +297,12 @@ function SchedulerReport({ data }) {
     }],
   };
 
-  // Same Department Capacity Utilization chart the Scheduler Dashboard shows.
+  // Same Department Capacity Utilization chart the Scheduler Dashboard shows,
+  // grouped by site (filled/capacity summed across that site's departments).
+  const capacityBySite = aggregateCapacityBySite(data.departmentCapacityUtilization);
   const capacityData = {
-    labels: data.departmentCapacityUtilization.map((c) => `${c.site}/${c.department}`),
-    datasets: [{ label: '% filled', data: data.departmentCapacityUtilization.map((c) => c.pct), backgroundColor: '#4A90D9' }],
+    labels: capacityBySite.map((c) => c.site),
+    datasets: [{ label: '% filled', data: capacityBySite.map((c) => c.pct), backgroundColor: '#4A90D9' }],
   };
 
   return (
@@ -318,7 +327,7 @@ function SchedulerReport({ data }) {
         </div>
       </div>
 
-      <h6 className="mt-4 mb-2">Department Capacity Utilization</h6>
+      <h6 className="mt-4 mb-2">Department Capacity Utilization (by site)</h6>
       <ChartBox height={220}><Bar data={capacityData} options={pctVerticalOptions} /></ChartBox>
 
       <h6 className="mt-4 mb-2">Detailed Figures</h6>
@@ -455,4 +464,19 @@ function avgPct(rows) {
   if (!rows || rows.length === 0) return 0;
   const sum = rows.reduce((acc, r) => acc + r.pct, 0);
   return Math.round((sum / rows.length) * 10) / 10;
+}
+
+/** Roll the per-site/department capacity rows up to one figure per site:
+ * total filled slots / total capacity across that site's departments. */
+function aggregateCapacityBySite(rows) {
+  const bySite = {};
+  (rows || []).forEach((r) => {
+    if (!bySite[r.site]) bySite[r.site] = { filled: 0, capacity: 0 };
+    bySite[r.site].filled += r.filled;
+    bySite[r.site].capacity += r.capacity;
+  });
+  return Object.entries(bySite).map(([site, v]) => ({
+    site,
+    pct: v.capacity > 0 ? Math.round((v.filled / v.capacity) * 1000) / 10 : 0,
+  }));
 }

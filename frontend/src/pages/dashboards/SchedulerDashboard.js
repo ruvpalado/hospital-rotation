@@ -18,6 +18,21 @@ export default function SchedulerDashboard() {
   const conflictIds = [...new Set((data.conflictFreeScheduling.conflictDetails || []).flatMap((c) => [c.a, c.b]))];
   const conflictLink = conflictIds.length ? `/schedules?conflictIds=${conflictIds.join(',')}` : undefined;
 
+  // Roll the per-site/department capacity rows up to one bar per site
+  // (filled slots / capacity summed across that site's departments) --
+  // easier to read at a glance than one bar per site/department combo.
+  const capacityBySite = {};
+  data.departmentCapacityUtilization.forEach((c) => {
+    if (!capacityBySite[c.site]) capacityBySite[c.site] = { filled: 0, capacity: 0 };
+    capacityBySite[c.site].filled += c.filled;
+    capacityBySite[c.site].capacity += c.capacity;
+  });
+  const capacitySiteLabels = Object.keys(capacityBySite);
+  const capacitySiteValues = capacitySiteLabels.map((site) => {
+    const { filled, capacity } = capacityBySite[site];
+    return capacity > 0 ? Math.round((filled / capacity) * 1000) / 10 : 0;
+  });
+
   return (
     <div className="container-fluid py-4">
       <h4 className="mb-3">Master Scheduler Dashboard</h4>
@@ -38,10 +53,10 @@ export default function SchedulerDashboard() {
         </div>
         <div className="col-md-6">
           <div className="card shadow-sm p-3">
-            <h6>{t('departmentCapacityUtilization')}</h6>
+            <h6>{t('departmentCapacityUtilization')} (by site)</h6>
             <Bar data={{
-              labels: data.departmentCapacityUtilization.map((c) => `${c.site}/${c.department}`),
-              datasets: [{ label: '% filled', data: data.departmentCapacityUtilization.map((c) => c.pct), backgroundColor: '#4A90D9' }],
+              labels: capacitySiteLabels,
+              datasets: [{ label: '% filled', data: capacitySiteValues, backgroundColor: '#4A90D9' }],
             }} options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { max: 100 } } }} />
           </div>
         </div>
