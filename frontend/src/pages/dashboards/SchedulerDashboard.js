@@ -18,20 +18,11 @@ export default function SchedulerDashboard() {
   const conflictIds = [...new Set((data.conflictFreeScheduling.conflictDetails || []).flatMap((c) => [c.a, c.b]))];
   const conflictLink = conflictIds.length ? `/schedules?conflictIds=${conflictIds.join(',')}` : undefined;
 
-  // Roll the per-site/department capacity rows up to one bar per site
-  // (filled slots / capacity summed across that site's departments) --
-  // easier to read at a glance than one bar per site/department combo.
-  const capacityBySite = {};
-  data.departmentCapacityUtilization.forEach((c) => {
-    if (!capacityBySite[c.site]) capacityBySite[c.site] = { filled: 0, capacity: 0 };
-    capacityBySite[c.site].filled += c.filled;
-    capacityBySite[c.site].capacity += c.capacity;
-  });
-  const capacitySiteLabels = Object.keys(capacityBySite);
-  const capacitySiteValues = capacitySiteLabels.map((site) => {
-    const { filled, capacity } = capacityBySite[site];
-    return capacity > 0 ? Math.round((filled / capacity) * 1000) / 10 : 0;
-  });
+  // Roll the per-site/department capacity rows up two ways: one bar per
+  // site, and one bar per department -- easier to read at a glance than one
+  // bar per site/department combo.
+  const capacityBySite = aggregateCapacity(data.departmentCapacityUtilization, 'site');
+  const capacityByDept = aggregateCapacity(data.departmentCapacityUtilization, 'department');
 
   return (
     <div className="container-fluid py-4">
@@ -55,12 +46,41 @@ export default function SchedulerDashboard() {
           <div className="card shadow-sm p-3">
             <h6>{t('departmentCapacityUtilization')} (by site)</h6>
             <Bar data={{
-              labels: capacitySiteLabels,
-              datasets: [{ label: '% filled', data: capacitySiteValues, backgroundColor: '#4A90D9' }],
+              labels: capacityBySite.map((c) => c.key),
+              datasets: [{ label: '% filled', data: capacityBySite.map((c) => c.pct), backgroundColor: '#4A90D9' }],
+            }} options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { max: 100 } } }} />
+          </div>
+        </div>
+      </div>
+
+      <div className="row g-3 mt-1">
+        <div className="col-md-12">
+          <div className="card shadow-sm p-3">
+            <h6>{t('departmentCapacityUtilization')} (by department)</h6>
+            <Bar data={{
+              labels: capacityByDept.map((c) => c.key),
+              datasets: [{ label: '% filled', data: capacityByDept.map((c) => c.pct), backgroundColor: '#8E7CC3' }],
             }} options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { max: 100 } } }} />
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+/** Roll the per-site/department capacity rows up to one figure per site OR
+ * per department (pass 'site' or 'department' as groupKey): total filled
+ * slots / total capacity summed across the grouped rows. */
+function aggregateCapacity(rows, groupKey) {
+  const grouped = {};
+  (rows || []).forEach((r) => {
+    const key = r[groupKey];
+    if (!grouped[key]) grouped[key] = { filled: 0, capacity: 0 };
+    grouped[key].filled += r.filled;
+    grouped[key].capacity += r.capacity;
+  });
+  return Object.entries(grouped).map(([key, v]) => ({
+    key,
+    pct: v.capacity > 0 ? Math.round((v.filled / v.capacity) * 1000) / 10 : 0,
+  }));
 }
