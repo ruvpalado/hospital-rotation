@@ -1,6 +1,8 @@
 import React from 'react';
+import { Bar, Doughnut } from 'react-chartjs-2';
 import { useAuth } from '../context/AuthContext';
 import { useKpiOverview, usePhysicianKpis } from './dashboards/useKpis';
+import './dashboards/ChartSetup';
 
 /**
  * "Generate Report" view, available to every role. Content is populated based
@@ -18,7 +20,12 @@ import { useKpiOverview, usePhysicianKpis } from './dashboards/useKpis';
  *     Notification Delivery Rate
  * Uses the browser's native print dialog (Save as PDF) rather than a new
  * backend dependency, since this is the same data already served to the
- * dashboards -- just laid out for printing.
+ * dashboards -- just laid out for printing. Each section pairs the numeric
+ * rows with the chart type that best fits the data shape: a horizontal bar
+ * for comparing several 0-100% metrics side by side, a plain bar for
+ * categorical/count data (per-site, per-department), and a doughnut for a
+ * single metric that is naturally "part completed / whole" (e.g. an
+ * individual physician's curriculum progress).
  */
 export default function Report() {
   const { user } = useAuth();
@@ -37,10 +44,12 @@ export default function Report() {
         @media print {
           .no-print { display: none !important; }
           #report-root { padding: 0 !important; }
+          .chart-box { page-break-inside: avoid; }
         }
         .report-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; }
         .report-row:last-child { border-bottom: none; }
         .report-section-title { margin-top: 24px; margin-bottom: 8px; border-bottom: 2px solid #333; padding-bottom: 4px; }
+        .chart-box { position: relative; margin-bottom: 8px; }
       `}</style>
 
       <div className="d-flex justify-content-between align-items-center mb-2 no-print">
@@ -83,7 +92,67 @@ function Row({ label, value, subtext }) {
   );
 }
 
+/** Fixed-height wrapper so Chart.js's responsive canvas has a stable size to
+ * measure both on screen and inside the print media query. */
+function ChartBox({ height = 220, children }) {
+  return <div className="chart-box" style={{ height }}>{children}</div>;
+}
+
+const legendOff = { plugins: { legend: { display: false } } };
+
+const pctHorizontalOptions = {
+  indexAxis: 'y',
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: { x: { min: 0, max: 100, ticks: { callback: (v) => `${v}%` } } },
+};
+
+const pctVerticalOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: { y: { min: 0, max: 100, ticks: { callback: (v) => `${v}%` } } },
+};
+
+const countBarOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: { y: { beginAtZero: true } },
+};
+
+const doughnutOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { position: 'bottom' } },
+};
+
 function AdminReport({ data }) {
+  const metricsBarData = {
+    labels: ['Rotation Coverage', 'Curriculum Compliance', 'Notification Success', 'Audit Log Completeness'],
+    datasets: [{
+      label: '%',
+      data: [
+        data.rotationCoverageRate.ratePct,
+        data.curriculumCompliance.pct,
+        data.notificationSuccessRate.pct,
+        data.auditLogCompleteness.pct,
+      ],
+      backgroundColor: ['#4A90D9', '#7FB37F', '#D9A84A', '#8E7CC3'],
+    }],
+  };
+
+  const siteUtilData = {
+    labels: Object.keys(data.siteUtilization),
+    datasets: [{ label: 'Rotations', data: Object.values(data.siteUtilization), backgroundColor: '#4A90D9' }],
+  };
+
+  const capacityData = {
+    labels: data.departmentCapacityUtilization.map((c) => `${c.site}/${c.department}`),
+    datasets: [{ label: '% filled', data: data.departmentCapacityUtilization.map((c) => c.pct), backgroundColor: '#D95F4A' }],
+  };
+
   return (
     <div>
       <h5 className="report-section-title">Overall Hospital Performance &amp; Compliance</h5>
@@ -98,11 +167,54 @@ function AdminReport({ data }) {
         subtext={`${data.notificationSuccessRate.succeeded}/${data.notificationSuccessRate.total} notifications`} />
       <Row label="Audit Log Completeness" value={`${data.auditLogCompleteness.pct}%`}
         subtext={`${data.auditLogCompleteness.attributed}/${data.auditLogCompleteness.total} log entries properly attributed`} />
+
+      <h6 className="mt-4 mb-2">Key Compliance &amp; Coverage Metrics</h6>
+      <ChartBox height={200}><Bar data={metricsBarData} options={pctHorizontalOptions} /></ChartBox>
+
+      <div className="row mt-3">
+        <div className="col-md-6">
+          <h6 className="mb-2">Site Utilization (rotations per site)</h6>
+          <ChartBox><Bar data={siteUtilData} options={countBarOptions} /></ChartBox>
+        </div>
+        <div className="col-md-6">
+          <h6 className="mb-2">Department Capacity Utilization (% filled)</h6>
+          <ChartBox><Bar data={capacityData} options={pctVerticalOptions} /></ChartBox>
+        </div>
+      </div>
     </div>
   );
 }
 
 function SchedulerReport({ data }) {
+  const pctData = {
+    labels: ['Rotation Block Completion', 'Change Request Rate'],
+    datasets: [{
+      label: '%',
+      data: [data.rotationBlockCompletion.pct, data.changeRequestRate.pct],
+      backgroundColor: ['#7FB37F', '#D9A84A'],
+    }],
+  };
+
+  const publicationData = {
+    labels: ['Days ahead (avg)'],
+    datasets: [{ label: 'Days', data: [data.schedulePublicationTimeliness.avgDaysAhead], backgroundColor: '#4A90D9' }],
+  };
+
+  const turnaroundData = {
+    labels: ['Hours (avg)'],
+    datasets: [{ label: 'Hours', data: [data.approvalTurnaroundTime.avgHours], backgroundColor: '#8E7CC3' }],
+  };
+
+  const totalAssignments = data.rotationBlockCompletion.total;
+  const conflicts = data.conflictFreeScheduling.conflicts;
+  const conflictData = {
+    labels: ['Conflicting', 'Clean'],
+    datasets: [{
+      data: [conflicts, Math.max(totalAssignments - conflicts, 0)],
+      backgroundColor: ['#D95F4A', '#7FB37F'],
+    }],
+  };
+
   return (
     <div>
       <h5 className="report-section-title">Scheduling Efficiency &amp; Accuracy</h5>
@@ -116,11 +228,43 @@ function SchedulerReport({ data }) {
         subtext={`${data.changeRequestRate.changeRequests}/${data.changeRequestRate.totalAssignments} assignments had a change request`} />
       <Row label="Approval Turnaround Time" value={`${data.approvalTurnaroundTime.avgHours} hours (avg)`}
         subtext={`across ${data.approvalTurnaroundTime.sampleSize} resolved change requests`} />
+
+      <h6 className="mt-4 mb-2">Block Completion &amp; Change Request Rate</h6>
+      <ChartBox height={200}><Bar data={pctData} options={pctHorizontalOptions} /></ChartBox>
+
+      <div className="row mt-3">
+        <div className="col-md-4">
+          <h6 className="mb-2">Publication Timeliness</h6>
+          <ChartBox><Bar data={publicationData} options={countBarOptions} /></ChartBox>
+        </div>
+        <div className="col-md-4">
+          <h6 className="mb-2">Approval Turnaround</h6>
+          <ChartBox><Bar data={turnaroundData} options={countBarOptions} /></ChartBox>
+        </div>
+        <div className="col-md-4">
+          <h6 className="mb-2">Conflict-Free Scheduling</h6>
+          <ChartBox><Doughnut data={conflictData} options={doughnutOptions} /></ChartBox>
+        </div>
+      </div>
     </div>
   );
 }
 
 function DeptHeadReport({ data }) {
+  const pctData = {
+    labels: ['Department Allocation Balance', 'Rotation Equity', 'Rotation Block Completion'],
+    datasets: [{
+      label: '%',
+      data: [data.departmentAllocationBalance.balancePct, data.rotationEquity.equityPct, data.rotationBlockCompletion.pct],
+      backgroundColor: ['#4A90D9', '#7FB37F', '#D9A84A'],
+    }],
+  };
+
+  const turnaroundData = {
+    labels: ['Hours (avg)'],
+    datasets: [{ label: 'Hours', data: [data.approvalTurnaroundTime.avgHours], backgroundColor: '#8E7CC3' }],
+  };
+
   return (
     <div>
       <h5 className="report-section-title">Department-Level Rotation Management</h5>
@@ -135,18 +279,61 @@ function DeptHeadReport({ data }) {
         Figures above are hospital-wide; department-scoped filtering can be added if you need
         numbers restricted to just your own department.
       </p>
+
+      <div className="row mt-3">
+        <div className="col-md-8">
+          <h6 className="mb-2">Allocation Balance, Equity &amp; Block Completion</h6>
+          <ChartBox><Bar data={pctData} options={pctHorizontalOptions} /></ChartBox>
+        </div>
+        <div className="col-md-4">
+          <h6 className="mb-2">Approval Turnaround</h6>
+          <ChartBox><Bar data={turnaroundData} options={countBarOptions} /></ChartBox>
+        </div>
+      </div>
     </div>
   );
 }
 
 function PhysicianReport({ data }) {
   const { individualRotationCompletion: irc, specialtyExposure: se, notificationDeliveryRate: nd } = data;
+
+  const ircData = {
+    labels: ['Completed', 'Remaining'],
+    datasets: [{ data: [irc.completed, Math.max(irc.totalRequired - irc.completed, 0)], backgroundColor: ['#7FB37F', '#e9ecef'] }],
+  };
+  const seData = {
+    labels: ['Rotated through', 'Remaining'],
+    datasets: [{ data: [se.distinctDepartments, Math.max(se.totalDepartments - se.distinctDepartments, 0)], backgroundColor: ['#4A90D9', '#e9ecef'] }],
+  };
+  const ndData = {
+    labels: ['Delivered', 'Missed'],
+    datasets: [{ data: [nd.succeeded, Math.max(nd.total - nd.succeeded, 0)], backgroundColor: ['#D9A84A', '#e9ecef'] }],
+  };
+
   return (
     <div>
       <h5 className="report-section-title">Personal Rotation Progress</h5>
       <Row label="Individual Rotation Completion" value={`${irc.pct}%`} subtext={`${irc.completed}/${irc.totalRequired} curriculum blocks completed`} />
       <Row label="Specialty Exposure" value={`${se.pct}%`} subtext={`${se.distinctDepartments}/${se.totalDepartments} departments rotated through`} />
       <Row label="Notification Delivery Rate" value={`${nd.pct}%`} subtext={`${nd.succeeded}/${nd.total} notifications delivered`} />
+
+      <div className="row mt-4">
+        <div className="col-md-4 text-center">
+          <h6 className="mb-2">Rotation Completion</h6>
+          <ChartBox><Doughnut data={ircData} options={doughnutOptions} /></ChartBox>
+          <div className="text-muted small">{irc.completed}/{irc.totalRequired} blocks ({irc.pct}%)</div>
+        </div>
+        <div className="col-md-4 text-center">
+          <h6 className="mb-2">Specialty Exposure</h6>
+          <ChartBox><Doughnut data={seData} options={doughnutOptions} /></ChartBox>
+          <div className="text-muted small">{se.distinctDepartments}/{se.totalDepartments} departments ({se.pct}%)</div>
+        </div>
+        <div className="col-md-4 text-center">
+          <h6 className="mb-2">Notification Delivery</h6>
+          <ChartBox><Doughnut data={ndData} options={doughnutOptions} /></ChartBox>
+          <div className="text-muted small">{nd.succeeded}/{nd.total} delivered ({nd.pct}%)</div>
+        </div>
+      </div>
     </div>
   );
 }
