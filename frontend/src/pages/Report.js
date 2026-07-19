@@ -31,6 +31,10 @@ import './dashboards/ChartSetup';
  * though the live dashboard chart area doesn't have room for every metric.
  * Charts come first in each section, with the detailed numeric figures
  * ("Detailed Figures") placed at the bottom for reference.
+ *
+ * Print layout: @page sets real page margins for the printed/PDF output
+ * (2cm top/bottom, 1.5cm left/right), and #report-root gets its own comfortable
+ * padding on screen so the content isn't flush against the browser edges.
  */
 export default function Report() {
   const { user } = useAuth();
@@ -46,11 +50,16 @@ export default function Report() {
   return (
     <div className="container py-4" id="report-root">
       <style>{`
+        @page {
+          margin: 2cm 1.5cm;
+        }
         @media print {
           .no-print { display: none !important; }
-          #report-root { padding: 0 !important; }
+          #report-root { padding: 0 !important; margin: 0 !important; max-width: none !important; }
           .chart-box { page-break-inside: avoid; }
+          .report-section-title, h5, h6 { page-break-after: avoid; }
         }
+        #report-root { padding: 24px; }
         .report-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; }
         .report-row:last-child { border-bottom: none; }
         .report-section-title { margin-top: 24px; margin-bottom: 8px; border-bottom: 2px solid #333; padding-bottom: 4px; }
