@@ -18,7 +18,8 @@ exports.listSchedules = async (req, res) => {
   if (physicianId) where.physician_id = physicianId;
   if (blockId) where.block_id = blockId;
 
-  let assignments = await RotationAssignment.findAll({ where, include: includeFull, order: [['start_date', 'ASC']] });
+  // Most recently created rotation assignment shows first.
+  let assignments = await RotationAssignment.findAll({ where, include: includeFull, order: [['createdAt', 'DESC']] });
 
   if (siteId) assignments = assignments.filter((a) => a.SiteDepartment.Site.id === Number(siteId));
   if (departmentId) assignments = assignments.filter((a) => a.SiteDepartment.Department.id === Number(departmentId));

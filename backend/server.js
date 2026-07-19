@@ -20,6 +20,11 @@ const blockRoutes = require('./routes/blocks');
 const userRoutes = require('./routes/users');
 
 const app = express();
+// This is a live scheduling API, not static content -- always serve fresh data.
+// Without this, Express's automatic ETag/304 responses get treated as request
+// failures by axios (its default validateStatus only accepts 200-299), which
+// surfaces in the browser as "Network Error" or "status code 304".
+app.disable('etag');
 app.use(helmet());
 // In production, restrict to the deployed frontend's origin via FRONTEND_URL.
 // Falls back to allow-all so local development keeps working out of the box.
