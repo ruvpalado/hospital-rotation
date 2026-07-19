@@ -88,27 +88,25 @@ export default function ScheduleViewer() {
         <h4 className="mb-0">{t('schedules')}</h4>
       </div>
 
-      <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-        <form className="d-flex flex-wrap gap-2" onSubmit={runSearch}>
-          <input
-            type="text"
-            className="form-control"
-            style={{ maxWidth: 360 }}
-            placeholder="Search by Doctor name or Facility..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
-          <button type="submit" className="btn btn-outline-primary">Search</button>
-          {appliedSearch && (
-            <button type="button" className="btn btn-outline-secondary" onClick={clearSearch}>Clear</button>
-          )}
-        </form>
+      <form className="d-flex align-items-center flex-wrap gap-2 mb-3" onSubmit={runSearch}>
+        <input
+          type="text"
+          className="form-control"
+          style={{ maxWidth: 360 }}
+          placeholder="Search by Doctor name or Facility..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+        />
+        <button type="submit" className="btn btn-outline-primary">Search</button>
+        {appliedSearch && (
+          <button type="button" className="btn btn-outline-secondary" onClick={clearSearch}>Clear</button>
+        )}
         {canAddSchedule && (
-          <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+          <button type="button" className="btn btn-primary" onClick={() => setShowAddModal(true)}>
             + Add Schedule
           </button>
         )}
-      </div>
+      </form>
 
       {appliedSearch && (
         <p className="text-muted small">
