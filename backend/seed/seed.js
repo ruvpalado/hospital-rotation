@@ -141,94 +141,12 @@ async function run() {
   }
   console.log('Blocks created: 13');
 
-  // ---------- Rotation assignments + weeks for Blocks 1-3 (demo window) ----------
-  const weekStatusScenarios = [
-    ['attended', 'attended', 'attended', 'attended'],      // fully completed
-    ['attended', 'attended', 'attended', 'pending'],       // in progress, will complete
-    ['attended', 'maternity_leave', 'attended', 'attended'],// completed despite 1 leave week (3 attended)
-    ['attended', 'maternity_leave', 'maternity_leave', 'attended'], // incomplete: only 2 attended
-    ['attended', 'annual_leave', 'attended', 'pending'],   // in progress
-    ['absent', 'attended', 'attended', 'attended'],        // completed (3 attended)
-  ];
-
-  let scenarioIdx = 0;
-  for (const block of blocks.slice(0, 3)) {
-    for (let i = 0; i < physicians.length; i++) {
-      const { user, homeSiteCode, homeDeptCode } = physicians[i];
-      // Rotate each physician through a different department at their home site each block
-      const deptOptions = SITE_DEPARTMENTS[homeSiteCode];
-      const deptCode = deptOptions[(i + block.block_number) % deptOptions.length];
-      const sd = siteDepartments[`${homeSiteCode}::${deptCode}`];
-      if (!sd) continue;
-
-      const assignment = await RotationAssignment.create({
-        physician_id: user.id,
-        site_department_id: sd.id,
-        block_id: block.id,
-        start_date: block.start_date,
-        end_date: block.end_date,
-        status: 'scheduled',
-      });
-
-      const scenario = weekStatusScenarios[scenarioIdx % weekStatusScenarios.length];
-      scenarioIdx++;
-      const start = new Date(block.start_date);
-      for (let w = 0; w < 4; w++) {
-        const weekStart = new Date(start);
-        weekStart.setDate(weekStart.getDate() + w * 7);
-        await RotationWeek.create({
-          rotation_assignment_id: assignment.id,
-          week_number: w + 1,
-          week_start_date: weekStart.toISOString().slice(0, 10),
-          status: scenario[w],
-        });
-      }
-      const attended = scenario.filter((s) => s === 'attended').length;
-      const anyPending = scenario.includes('pending');
-      assignment.status = anyPending && attended < 3 ? 'in_progress' : (attended >= 3 ? 'completed' : 'incomplete');
-      await assignment.save();
-    }
-  }
-  console.log('Rotation assignments + weeks created for Blocks 1-3');
-
-  // ---------- Deliberate scheduling conflict for KPI demo ----------
-  // Physician #0 double-booked at two different site-departments with overlapping dates in Block 1.
-  const conflictPhysician = physicians[0].user;
-  const altSiteCode = siteCodesList[1];
-  const altDeptCode = SITE_DEPARTMENTS[altSiteCode][0];
-  const altSd = siteDepartments[`${altSiteCode}::${altDeptCode}`];
-  if (altSd) {
-    const b1 = blocks[0];
-    await RotationAssignment.create({
-      physician_id: conflictPhysician.id,
-      site_department_id: altSd.id,
-      block_id: b1.id,
-      start_date: b1.start_date,
-      end_date: b1.end_date,
-      status: 'scheduled',
-    });
-    console.log('Deliberate overlap conflict seeded for KPI demo');
-  }
-
-  // ---------- Change requests ----------
-  const someAssignments = await RotationAssignment.findAll({ limit: 5 });
-  for (let i = 0; i < someAssignments.length; i++) {
-    const a = someAssignments[i];
-    const requestedAt = new Date();
-    requestedAt.setDate(requestedAt.getDate() - (5 - i));
-    const isResolved = i < 3;
-    const resolvedAt = isResolved ? new Date(requestedAt.getTime() + (4 + i) * 60 * 60 * 1000) : null;
-    await ChangeRequest.create({
-      rotation_assignment_id: a.id,
-      requested_by_id: physicians[i % physicians.length].user.id,
-      reason: 'Requesting swap due to personal scheduling conflict.',
-      status: isResolved ? 'approved' : 'pending',
-      requested_at: requestedAt,
-      resolved_by_id: isResolved ? admin.id : null,
-      resolved_at: resolvedAt,
-    });
-  }
-  console.log('Sample change requests created');
+  // ---------- Rotation assignments / weeks / change requests ----------
+  // Intentionally NOT seeded. Real rotation schedules should be created by
+  // the Master Scheduler through the app (Schedules -> + Add Schedule) once
+  // the reference data above (roles, sites, departments, users, curriculum
+  // blocks) is in place. This keeps the Schedules page free of fake demo
+  // assignments in every environment that runs this seed script.
 
   // ---------- Notifications ----------
   for (let i = 0; i < 8; i++) {
