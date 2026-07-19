@@ -16,6 +16,11 @@ export default function AdminDashboard() {
   const siteLabels = Object.keys(data.siteUtilization);
   const siteValues = Object.values(data.siteUtilization);
 
+  // Link the conflict count straight to the schedules involved so the
+  // admin can jump from the count to the actual overlapping records.
+  const conflictIds = [...new Set((data.conflictFreeScheduling.conflictDetails || []).flatMap((c) => [c.a, c.b]))];
+  const conflictLink = conflictIds.length ? `/schedules?conflictIds=${conflictIds.join(',')}` : undefined;
+
   return (
     <div className="container-fluid py-4">
       <h4 className="mb-3">Hospital Administrator Dashboard</h4>
@@ -23,7 +28,7 @@ export default function AdminDashboard() {
         <div className="col-md-3"><KpiCard label={t('rotationCoverageRate')} value={data.rotationCoverageRate.ratePct} suffix="%" subtext={`${data.rotationCoverageRate.assignedPhysicians}/${data.rotationCoverageRate.totalPhysicians} physicians`} /></div>
         <div className="col-md-3"><KpiCard label={t('curriculumCompliance')} value={data.curriculumCompliance.pct} suffix="%" subtext={`${data.curriculumCompliance.completed}/${data.curriculumCompliance.expected} block-assignments`} accent="#7FB37F" /></div>
         <div className="col-md-3"><KpiCard label={t('notifications') + ' success'} value={data.notificationSuccessRate.pct} suffix="%" subtext={`${data.notificationSuccessRate.succeeded}/${data.notificationSuccessRate.total}`} accent="#D9A84A" /></div>
-        <div className="col-md-3"><KpiCard label={t('conflictFreeScheduling')} value={data.conflictFreeScheduling.conflicts} subtext="overlapping assignments detected" accent="#D95F4A" /></div>
+        <div className="col-md-3"><KpiCard label={t('conflictFreeScheduling')} value={data.conflictFreeScheduling.conflicts} subtext="overlapping assignments detected" accent="#D95F4A" to={conflictLink} /></div>
       </div>
 
       <div className="row g-3">

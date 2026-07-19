@@ -13,12 +13,17 @@ export default function SchedulerDashboard() {
 
   if (loading || !data) return <div className="text-center mt-5">Loading KPIs...</div>;
 
+  // Link the conflict count straight to the schedules involved so the
+  // scheduler can jump from "1 conflict" to the actual overlapping records.
+  const conflictIds = [...new Set((data.conflictFreeScheduling.conflictDetails || []).flatMap((c) => [c.a, c.b]))];
+  const conflictLink = conflictIds.length ? `/schedules?conflictIds=${conflictIds.join(',')}` : undefined;
+
   return (
     <div className="container-fluid py-4">
       <h4 className="mb-3">Master Scheduler Dashboard</h4>
       <div className="row g-3 mb-4">
         <div className="col-md-3"><KpiCard label={t('schedulePublicationTimeliness')} value={data.schedulePublicationTimeliness.avgDaysAhead} suffix=" days ahead" accent="#4A90D9" /></div>
-        <div className="col-md-3"><KpiCard label={t('conflictFreeScheduling')} value={data.conflictFreeScheduling.conflicts} subtext="conflicts to resolve" accent="#D95F4A" /></div>
+        <div className="col-md-3"><KpiCard label={t('conflictFreeScheduling')} value={data.conflictFreeScheduling.conflicts} subtext="conflicts to resolve" accent="#D95F4A" to={conflictLink} /></div>
         <div className="col-md-3"><KpiCard label={t('rotationBlockCompletion')} value={data.rotationBlockCompletion.pct} suffix="%" subtext={`${data.rotationBlockCompletion.completed}/${data.rotationBlockCompletion.total}`} accent="#7FB37F" /></div>
         <div className="col-md-3"><KpiCard label={t('changeRequestRate')} value={data.changeRequestRate.pct} suffix="%" subtext={`${data.changeRequestRate.changeRequests} requests`} accent="#D9A84A" /></div>
       </div>

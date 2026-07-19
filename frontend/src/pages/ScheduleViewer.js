@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useColorMaps, colorFor } from '../utils/colorCoding';
@@ -16,6 +17,21 @@ export default function ScheduleViewer() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
+
+  // Populated when arriving from the "Conflict-Free Scheduling" KPI card
+  // (?conflictIds=1,2,3) so we can jump straight to the schedules involved.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const conflictIds = (searchParams.get('conflictIds') || '')
+    .split(',')
+    .filter(Boolean)
+    .map(Number);
+  const conflictFilterActive = conflictIds.length > 0;
+
+  const clearConflictFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('conflictIds');
+    setSearchParams(next);
+  };
 
   // Only the Master Scheduler can change a week's attendance status; other
   // roles see schedules read-only.
@@ -52,13 +68,17 @@ export default function ScheduleViewer() {
   };
 
   // Match against physician name (Doctor) and site name (Facility).
-  const visibleSchedules = appliedSearch
+  let visibleSchedules = appliedSearch
     ? schedules.filter((s) => {
         const doctor = (s.physician?.full_name || '').toLowerCase();
         const facility = (s.site?.name || '').toLowerCase();
         return doctor.includes(appliedSearch) || facility.includes(appliedSearch);
       })
     : schedules;
+
+  if (conflictFilterActive) {
+    visibleSchedules = visibleSchedules.filter((s) => conflictIds.includes(s.id));
+  }
 
   if (loading) return <div className="text-center mt-5">Loading schedules...</div>;
 
@@ -93,6 +113,18 @@ export default function ScheduleViewer() {
         </p>
       )}
 
+      {conflictFilterActive && (
+        <div className="alert alert-danger d-flex justify-content-between align-items-center">
+          <span>
+            Showing {visibleSchedules.length} schedule{visibleSchedules.length === 1 ? '' : 's'} involved in an
+            overlapping-date conflict.
+          </span>
+          <button type="button" className="btn btn-sm btn-outline-danger" onClick={clearConflictFilter}>
+            Clear filter
+          </button>
+        </div>
+      )}
+
       {showAddModal && (
         <AddScheduleModal onClose={() => setShowAddModal(false)} onCreated={handleCreated} />
       )}
@@ -104,11 +136,12 @@ export default function ScheduleViewer() {
       <div className="row g-3">
         {visibleSchedules.map((s) => (
           <div className="col-md-6 col-lg-4" key={s.id}>
-            <div className="card shadow-sm h-100">
+            <div className={`card shadow-sm h-100 ${conflictIds.includes(s.id) ? 'border-danger border-2' : ''}`}>
               <div className="card-header d-flex justify-content-between align-items-center"
                    style={{ background: colorFor(siteColors, s.site.short_code), color: '#fff' }}>
                 <span>{s.site.name}</span>
                 <span className="badge bg-light text-dark">{s.block.name}</span>
+                {conflictIds.includes(s.id) && <span className="badge bg-danger ms-2">Conflict</span>}
               </div>
               <div className="card-body">
                 <div className="mb-2">
