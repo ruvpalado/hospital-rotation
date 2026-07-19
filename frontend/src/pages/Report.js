@@ -33,8 +33,9 @@ import './dashboards/ChartSetup';
  * ("Detailed Figures") placed at the bottom for reference.
  *
  * Print layout: @page sets real page margins for the printed/PDF output
- * (2cm top/bottom, 1.5cm left/right), and #report-root gets its own comfortable
- * padding on screen so the content isn't flush against the browser edges.
+ * (2cm top/bottom, 2.54cm right, 1.5cm left), and #report-root gets its own
+ * comfortable padding on screen so the content isn't flush against the
+ * browser edges.
  */
 export default function Report() {
   const { user } = useAuth();
@@ -51,7 +52,10 @@ export default function Report() {
     <div className="container py-4" id="report-root">
       <style>{`
         @page {
-          margin: 2cm 1.5cm;
+          margin-top: 2cm;
+          margin-right: 2.54cm;
+          margin-bottom: 2cm;
+          margin-left: 1.5cm;
         }
         @media print {
           .no-print { display: none !important; }
