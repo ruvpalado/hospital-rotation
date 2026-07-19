@@ -57,6 +57,10 @@ exports.login = async (req, res) => {
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
 
+    if (!user.is_active) {
+      return res.status(403).json({ error: 'This account has been deactivated. Contact your administrator.' });
+    }
+
     const token = signToken(user, user.Role.key);
     return res.json({ token, user: publicUser(user, user.Role) });
   } catch (err) {
@@ -84,5 +88,6 @@ function publicUser(user, role) {
     homeSiteId: user.home_site_id,
     homeDepartmentId: user.home_department_id,
     languagePref: user.language_pref,
+    isActive: user.is_active,
   };
 }

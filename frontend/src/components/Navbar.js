@@ -30,6 +30,9 @@ export default function Navbar() {
           {user.role === 'admin' && (
             <li className="nav-item"><Link className="nav-link" to="/audit-log">{t('auditLog')}</Link></li>
           )}
+          {(user.role === 'admin' || user.role === 'scheduler') && (
+            <li className="nav-item"><Link className="nav-link" to="/users">Users</Link></li>
+          )}
           <li className="nav-item"><Link className="nav-link" to="/report">Generate Report</Link></li>
         </ul>
         <div className="d-flex align-items-center gap-2">

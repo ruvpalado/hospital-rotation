@@ -11,6 +11,7 @@ import DepartmentApproval from './pages/DepartmentApproval';
 import NotificationsCenter from './pages/NotificationsCenter';
 import AuditLog from './pages/AuditLog';
 import Report from './pages/Report';
+import UserManagement from './pages/UserManagement';
 
 function Layout({ children }) {
   return (
@@ -45,6 +46,9 @@ export default function App() {
           } />
           <Route path="/report" element={
             <RoleBasedRoute><Layout><Report /></Layout></RoleBasedRoute>
+          } />
+          <Route path="/users" element={
+            <RoleBasedRoute allowedRoles={['admin', 'scheduler']}><Layout><UserManagement /></Layout></RoleBasedRoute>
           } />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
