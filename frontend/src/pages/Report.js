@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { Chart as ChartJS } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { useAuth } from '../context/AuthContext';
 import { useKpiOverview, usePhysicianKpis } from './dashboards/useKpis';
@@ -43,11 +44,30 @@ import './dashboards/ChartSetup';
  * being zeroed out, so the same padding value is the sole source of margin
  * in both contexts -- what you see on screen is what gets printed/saved as
  * PDF.
+ *
+ * Chart.js canvases size themselves off their container the last time a
+ * resize event fired, and the browser's print pass doesn't fire one on its
+ * own -- so a `beforeprint`/`afterprint` listener forces every chart to
+ * resize right before/after printing, otherwise charts (especially the wide
+ * grouped Department Capacity Utilization bar) can render tiny/squished in
+ * the printed PDF even though they look correct on screen.
  */
 export default function Report() {
   const { user } = useAuth();
   const { data: overview, loading: overviewLoading } = useKpiOverview();
   const physicianKpis = usePhysicianKpis(user?.role === 'physician' ? user.id : null);
+
+  useEffect(() => {
+    const resizeAllCharts = () => {
+      Object.values(ChartJS.instances || {}).forEach((chart) => chart.resize());
+    };
+    window.addEventListener('beforeprint', resizeAllCharts);
+    window.addEventListener('afterprint', resizeAllCharts);
+    return () => {
+      window.removeEventListener('beforeprint', resizeAllCharts);
+      window.removeEventListener('afterprint', resizeAllCharts);
+    };
+  }, []);
 
   const loading = user?.role === 'physician' ? !physicianKpis : overviewLoading || !overview;
 
