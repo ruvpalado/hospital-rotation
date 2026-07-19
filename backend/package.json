@@ -7,7 +7,8 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "seed": "node seed/seed.js",
-    "clear-schedules": "node scripts/clear-schedules.js"
+    "clear-schedules": "node scripts/clear-schedules.js",
+    "update-block-dates": "node scripts/update-block-dates.js"
   },
   "dependencies": {
     "express": "^4.19.2",

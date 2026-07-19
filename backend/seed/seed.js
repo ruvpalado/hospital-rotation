@@ -6,6 +6,7 @@ const {
 } = require('../models');
 const { SITES, DEPARTMENTS, SITE_DEPARTMENTS } = require('./data');
 const { paletteFor } = require('./colors');
+const { BLOCK_DEFS } = require('./blockDefs');
 
 const DEFAULT_PASSWORD = 'Passw0rd!'; // demo only - change in production
 
@@ -116,30 +117,28 @@ async function run() {
   }
   console.log('Users created:', physicians.length + deptHeadCodes.length + 3);
 
-  // ---------- Blocks (1-13), 4 weeks each, sequential from 2026-01-05 ----------
-  const blockStart0 = new Date('2026-01-05'); // Monday
+  // ---------- Blocks (1-13), Sept 2026 - Aug 2027 curriculum cycle ----------
+  // Exact dates from the approved rotation schedule: Block 1 starts Sept 1,
+  // 2026; Block 2 starts Sept 27, 2026; each block is a 4-week cycle except
+  // Block 13, which is the 5-week exception. See ./blockDefs.js.
   const blocks = [];
-  for (let n = 1; n <= 13; n++) {
-    const start = new Date(blockStart0);
-    start.setDate(start.getDate() + (n - 1) * 28);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 27);
-    // Publication timeliness varies: most published 14 days ahead, a couple late (only 2 days ahead)
-    const publishLeadDays = n % 4 === 0 ? 2 : 14;
-    const publishedAt = new Date(start);
+  for (const def of BLOCK_DEFS) {
+    const publishLeadDays = def.n % 4 === 0 ? 2 : 14;
+    const startDateObj = new Date(def.start);
+    const publishedAt = new Date(startDateObj);
     publishedAt.setDate(publishedAt.getDate() - publishLeadDays);
 
     const block = await Block.create({
-      block_number: n,
-      name: `Block ${n}`,
-      start_date: start.toISOString().slice(0, 10),
-      end_date: end.toISOString().slice(0, 10),
-      total_weeks: 4,
+      block_number: def.n,
+      name: `Block ${def.n}`,
+      start_date: def.start,
+      end_date: def.end,
+      total_weeks: def.weeks,
       published_at: publishedAt,
     });
     blocks.push(block);
   }
-  console.log('Blocks created: 13');
+  console.log('Blocks created: 13 (Sept 2026 - Aug 2027 curriculum cycle)');
 
   // ---------- Rotation assignments / weeks / change requests ----------
   // Intentionally NOT seeded. Real rotation schedules should be created by
