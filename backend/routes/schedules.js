@@ -13,5 +13,8 @@ router.post('/', authenticate, requireRole('scheduler'), withAudit('create', 'sc
 // schedules but not edit attendance directly.
 router.patch('/weeks/:weekId', authenticate, requireRole('scheduler'), withAudit('edit', 'rotation_week'), scheduleController.updateWeekStatus);
 router.post('/:id/approve', authenticate, requireRole('admin', 'dept_head'), withAudit('approve', 'schedule'), scheduleController.approveSchedule);
+// Admin-only maintenance action: wipe rotation-schedule test data (change
+// requests, weeks, assignments) without touching reference data.
+router.post('/clear-test-data', authenticate, requireRole('admin'), withAudit('delete', 'schedule'), scheduleController.clearTestData);
 
 module.exports = router;

@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const {
-  RotationAssignment, RotationWeek, Block, SiteDepartment, Site, Department, User,
+  RotationAssignment, RotationWeek, Block, SiteDepartment, Site, Department, User, ChangeRequest,
 } = require('../models');
 const { deriveAssignmentStatus } = require('../utils/rotationRules');
 const { sendNotification } = require('../services/notificationService');
@@ -107,6 +107,30 @@ exports.approveSchedule = async (req, res) => {
   a.approved_at = new Date();
   await a.save();
   res.json({ message: 'Approved', assignment: a });
+};
+
+// One-time / repeatable maintenance action: wipes rotation-schedule test
+// data (change requests, weeks, assignments) from whatever database this API
+// instance is actually connected to, without touching roles, sites,
+// departments, users, curriculum blocks, notifications, or audit logs. Lets
+// an admin clear seeded test data without needing shell/console access to
+// the host. Mirrors backend/scripts/clear-schedules.js.
+exports.clearTestData = async (req, res) => {
+  try {
+    const changeRequestCount = await ChangeRequest.destroy({ where: {} });
+    const weekCount = await RotationWeek.destroy({ where: {} });
+    const assignmentCount = await RotationAssignment.destroy({ where: {} });
+
+    res.json({
+      message: 'Schedule test data cleared',
+      changeRequestsDeleted: changeRequestCount,
+      rotationWeeksDeleted: weekCount,
+      rotationAssignmentsDeleted: assignmentCount,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to clear schedule test data', details: err.message });
+  }
 };
 
 function serialize(a) {
