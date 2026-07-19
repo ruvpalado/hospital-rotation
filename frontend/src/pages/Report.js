@@ -32,15 +32,13 @@ import './dashboards/ChartSetup';
  * Charts come first in each section, with the detailed numeric figures
  * ("Detailed Figures") placed at the bottom for reference.
  *
- * Print layout: @page sets a uniform 2.54cm (1 inch) margin on all sides for
- * the printed/PDF output (Word "Normal" margin), and #report-root gets its
- * own comfortable padding on screen so the content isn't flush against the
- * browser edges.
- *
- * Department Capacity Utilization is charted as a grouped bar: sites on the
- * x-axis, one colored bar per department within each site -- shows capacity
- * by department, broken out per site, instead of one bar per flat
- * site/department label (too dense) or two separate aggregate-only charts.
+ * Layout: #report-root is rendered as an actual "paper" page -- white
+ * background, fixed max width, a real 2.54cm padding on every side -- sitting
+ * on a light gray backdrop, so the margin is visibly obvious on screen, not
+ * just something that only shows up once you print. @page then gives the
+ * printed/PDF output the same 2.54cm margin on all sides, and the on-screen
+ * chrome (gray backdrop, shadow, toolbar) is stripped out for print so the
+ * printed page isn't double-margined.
  */
 export default function Report() {
   const { user } = useAuth();
@@ -54,38 +52,57 @@ export default function Report() {
   const generatedAt = new Date().toLocaleString();
 
   return (
-    <div className="container py-4" id="report-root">
+    <div className="report-page-bg">
       <style>{`
         @page {
           margin: 2.54cm;
         }
+        .report-page-bg {
+          background: #e9ecef;
+          min-height: 100vh;
+          padding: 32px 16px;
+        }
+        .report-toolbar {
+          max-width: 900px;
+          margin: 0 auto 16px auto;
+        }
+        #report-root {
+          background: #fff;
+          max-width: 900px;
+          margin: 0 auto;
+          padding: 2.54cm;
+          box-shadow: 0 1px 8px rgba(0, 0, 0, 0.18);
+          border-radius: 4px;
+        }
         @media print {
           .no-print { display: none !important; }
-          #report-root { padding: 0 !important; margin: 0 !important; max-width: none !important; }
+          .report-page-bg { background: none; min-height: 0; padding: 0; }
+          #report-root { box-shadow: none; max-width: none; padding: 0; margin: 0; border-radius: 0; }
           .chart-box { page-break-inside: avoid; }
           .report-section-title, h5, h6 { page-break-after: avoid; }
         }
-        #report-root { padding: 24px; }
         .report-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; }
         .report-row:last-child { border-bottom: none; }
         .report-section-title { margin-top: 24px; margin-bottom: 8px; border-bottom: 2px solid #333; padding-bottom: 4px; }
         .chart-box { position: relative; margin-bottom: 8px; }
       `}</style>
 
-      <div className="d-flex justify-content-between align-items-center mb-2 no-print">
+      <div className="d-flex justify-content-between align-items-center report-toolbar no-print">
         <h4 className="mb-0">Generate Report</h4>
         <button className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
       </div>
 
-      <h3 className="mb-0">OBGYN Master Rotation — {roleReportTitle(user?.role)}</h3>
-      <p className="text-muted">
-        Generated {generatedAt} for {user?.fullName} ({user?.roleLabel})
-      </p>
+      <div id="report-root">
+        <h3 className="mb-0">OBGYN Master Rotation — {roleReportTitle(user?.role)}</h3>
+        <p className="text-muted">
+          Generated {generatedAt} for {user?.fullName} ({user?.roleLabel})
+        </p>
 
-      {user?.role === 'admin' && <AdminReport data={overview} />}
-      {user?.role === 'scheduler' && <SchedulerReport data={overview} />}
-      {user?.role === 'dept_head' && <DeptHeadReport data={overview} />}
-      {user?.role === 'physician' && <PhysicianReport data={physicianKpis} />}
+        {user?.role === 'admin' && <AdminReport data={overview} />}
+        {user?.role === 'scheduler' && <SchedulerReport data={overview} />}
+        {user?.role === 'dept_head' && <DeptHeadReport data={overview} />}
+        {user?.role === 'physician' && <PhysicianReport data={physicianKpis} />}
+      </div>
     </div>
   );
 }
