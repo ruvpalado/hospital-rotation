@@ -29,6 +29,8 @@ import './dashboards/ChartSetup';
  * Completeness for Admin, Notification Delivery Rate for Physician) are kept
  * too, since the project spec calls for them at that role's level even
  * though the live dashboard chart area doesn't have room for every metric.
+ * Charts come first in each section, with the detailed numeric figures
+ * ("Detailed Figures") placed at the bottom for reference.
  */
 export default function Report() {
   const { user } = useAuth();
@@ -188,23 +190,8 @@ function AdminReport({ data }) {
   return (
     <div>
       <h5 className="report-section-title">Overall Hospital Performance &amp; Compliance</h5>
-      <Row label="Rotation Coverage Rate" value={`${data.rotationCoverageRate.ratePct}%`}
-        subtext={`${data.rotationCoverageRate.assignedPhysicians}/${data.rotationCoverageRate.totalPhysicians} physicians assigned`} />
-      <Row label="Site Utilization (rotations per site)" value={Object.entries(data.siteUtilization).map(([s, v]) => `${s}: ${v}`).join(', ')} />
-      <Row label="Department Capacity Utilization (avg)" value={`${avgPct(data.departmentCapacityUtilization)}%`}
-        subtext={`${data.departmentCapacityUtilization.length} site/department slots tracked`} />
-      <Row label="Curriculum Compliance" value={`${data.curriculumCompliance.pct}%`}
-        subtext={`${data.curriculumCompliance.completed}/${data.curriculumCompliance.expected} block-assignments completed`} />
-      <Row label="Notification Success Rate" value={`${data.notificationSuccessRate.pct}%`}
-        subtext={`${data.notificationSuccessRate.succeeded}/${data.notificationSuccessRate.total} notifications`} />
-      <Row label="Audit Log Completeness" value={`${data.auditLogCompleteness.pct}%`}
-        subtext={`${data.auditLogCompleteness.attributed}/${data.auditLogCompleteness.total} log entries properly attributed`} />
-      <Row label="Department Allocation Balance" value={`${data.departmentAllocationBalance.balancePct}%`}
-        subtext="100% = perfectly even distribution across departments" />
-      <Row label="Conflict-Free Scheduling" value={`${data.conflictFreeScheduling.conflicts} conflicts`}
-        subtext="overlapping assignments for the same physician" />
 
-      <h6 className="mt-4 mb-2">Key Compliance &amp; Coverage Metrics</h6>
+      <h6 className="mt-2 mb-2">Key Compliance &amp; Coverage Metrics</h6>
       <ChartBox height={200}><Bar data={metricsBarData} options={pctHorizontalOptions} /></ChartBox>
 
       <div className="row mt-3">
@@ -239,6 +226,23 @@ function AdminReport({ data }) {
           <ChartBox><Bar data={siteComplianceData} options={pctVerticalOptions} /></ChartBox>
         </div>
       </div>
+
+      <h6 className="mt-4 mb-2">Detailed Figures</h6>
+      <Row label="Rotation Coverage Rate" value={`${data.rotationCoverageRate.ratePct}%`}
+        subtext={`${data.rotationCoverageRate.assignedPhysicians}/${data.rotationCoverageRate.totalPhysicians} physicians assigned`} />
+      <Row label="Site Utilization (rotations per site)" value={Object.entries(data.siteUtilization).map(([s, v]) => `${s}: ${v}`).join(', ')} />
+      <Row label="Department Capacity Utilization (avg)" value={`${avgPct(data.departmentCapacityUtilization)}%`}
+        subtext={`${data.departmentCapacityUtilization.length} site/department slots tracked`} />
+      <Row label="Curriculum Compliance" value={`${data.curriculumCompliance.pct}%`}
+        subtext={`${data.curriculumCompliance.completed}/${data.curriculumCompliance.expected} block-assignments completed`} />
+      <Row label="Notification Success Rate" value={`${data.notificationSuccessRate.pct}%`}
+        subtext={`${data.notificationSuccessRate.succeeded}/${data.notificationSuccessRate.total} notifications`} />
+      <Row label="Audit Log Completeness" value={`${data.auditLogCompleteness.pct}%`}
+        subtext={`${data.auditLogCompleteness.attributed}/${data.auditLogCompleteness.total} log entries properly attributed`} />
+      <Row label="Department Allocation Balance" value={`${data.departmentAllocationBalance.balancePct}%`}
+        subtext="100% = perfectly even distribution across departments" />
+      <Row label="Conflict-Free Scheduling" value={`${data.conflictFreeScheduling.conflicts} conflicts`}
+        subtext="overlapping assignments for the same physician" />
     </div>
   );
 }
@@ -282,20 +286,8 @@ function SchedulerReport({ data }) {
   return (
     <div>
       <h5 className="report-section-title">Scheduling Efficiency &amp; Accuracy</h5>
-      <Row label="Schedule Publication Timeliness" value={`${data.schedulePublicationTimeliness.avgDaysAhead} days ahead (avg)`}
-        subtext={`across ${data.schedulePublicationTimeliness.sampleSize} published blocks`} />
-      <Row label="Conflict-Free Scheduling" value={`${data.conflictFreeScheduling.conflicts} conflicts`}
-        subtext="overlapping assignments for the same physician" />
-      <Row label="Rotation Block Completion" value={`${data.rotationBlockCompletion.pct}%`}
-        subtext={`${data.rotationBlockCompletion.completed}/${data.rotationBlockCompletion.total} assignments completed`} />
-      <Row label="Change Request Rate" value={`${data.changeRequestRate.pct}%`}
-        subtext={`${data.changeRequestRate.changeRequests}/${data.changeRequestRate.totalAssignments} assignments had a change request`} />
-      <Row label="Approval Turnaround Time" value={`${data.approvalTurnaroundTime.avgHours} hours (avg)`}
-        subtext={`across ${data.approvalTurnaroundTime.sampleSize} resolved change requests`} />
-      <Row label="Department Capacity Utilization (avg)" value={`${avgPct(data.departmentCapacityUtilization)}%`}
-        subtext={`${data.departmentCapacityUtilization.length} site/department slots tracked`} />
 
-      <h6 className="mt-4 mb-2">Block Completion &amp; Change Request Rate</h6>
+      <h6 className="mt-2 mb-2">Block Completion &amp; Change Request Rate</h6>
       <ChartBox height={200}><Bar data={pctData} options={pctHorizontalOptions} /></ChartBox>
 
       <div className="row mt-3">
@@ -315,6 +307,20 @@ function SchedulerReport({ data }) {
 
       <h6 className="mt-4 mb-2">Department Capacity Utilization</h6>
       <ChartBox height={220}><Bar data={capacityData} options={pctVerticalOptions} /></ChartBox>
+
+      <h6 className="mt-4 mb-2">Detailed Figures</h6>
+      <Row label="Schedule Publication Timeliness" value={`${data.schedulePublicationTimeliness.avgDaysAhead} days ahead (avg)`}
+        subtext={`across ${data.schedulePublicationTimeliness.sampleSize} published blocks`} />
+      <Row label="Conflict-Free Scheduling" value={`${data.conflictFreeScheduling.conflicts} conflicts`}
+        subtext="overlapping assignments for the same physician" />
+      <Row label="Rotation Block Completion" value={`${data.rotationBlockCompletion.pct}%`}
+        subtext={`${data.rotationBlockCompletion.completed}/${data.rotationBlockCompletion.total} assignments completed`} />
+      <Row label="Change Request Rate" value={`${data.changeRequestRate.pct}%`}
+        subtext={`${data.changeRequestRate.changeRequests}/${data.changeRequestRate.totalAssignments} assignments had a change request`} />
+      <Row label="Approval Turnaround Time" value={`${data.approvalTurnaroundTime.avgHours} hours (avg)`}
+        subtext={`across ${data.approvalTurnaroundTime.sampleSize} resolved change requests`} />
+      <Row label="Department Capacity Utilization (avg)" value={`${avgPct(data.departmentCapacityUtilization)}%`}
+        subtext={`${data.departmentCapacityUtilization.length} site/department slots tracked`} />
     </div>
   );
 }
@@ -347,19 +353,8 @@ function DeptHeadReport({ data }) {
   return (
     <div>
       <h5 className="report-section-title">Department-Level Rotation Management</h5>
-      <Row label="Department Allocation Balance" value={`${data.departmentAllocationBalance.balancePct}%`}
-        subtext="100% = perfectly even distribution across departments" />
-      <Row label="Rotation Equity" value={`${data.rotationEquity.equityPct}%`}
-        subtext="100% = perfectly equal completed-rotation workload across physicians" />
-      <Row label="Rotation Block Completion" value={`${data.rotationBlockCompletion.pct}%`}
-        subtext={`${data.rotationBlockCompletion.completed}/${data.rotationBlockCompletion.total} assignments completed`} />
-      <Row label="Approval Turnaround Time" value={`${data.approvalTurnaroundTime.avgHours} hours (avg)`} />
-      <p className="text-muted small mt-2">
-        Figures above are hospital-wide; department-scoped filtering can be added if you need
-        numbers restricted to just your own department.
-      </p>
 
-      <div className="row mt-3">
+      <div className="row mt-2">
         <div className="col-md-8">
           <h6 className="mb-2">Allocation Balance, Equity &amp; Block Completion</h6>
           <ChartBox><Bar data={pctData} options={pctHorizontalOptions} /></ChartBox>
@@ -380,6 +375,19 @@ function DeptHeadReport({ data }) {
           <ChartBox><Bar data={equityCountsData} options={countBarOptions} /></ChartBox>
         </div>
       </div>
+
+      <h6 className="mt-4 mb-2">Detailed Figures</h6>
+      <Row label="Department Allocation Balance" value={`${data.departmentAllocationBalance.balancePct}%`}
+        subtext="100% = perfectly even distribution across departments" />
+      <Row label="Rotation Equity" value={`${data.rotationEquity.equityPct}%`}
+        subtext="100% = perfectly equal completed-rotation workload across physicians" />
+      <Row label="Rotation Block Completion" value={`${data.rotationBlockCompletion.pct}%`}
+        subtext={`${data.rotationBlockCompletion.completed}/${data.rotationBlockCompletion.total} assignments completed`} />
+      <Row label="Approval Turnaround Time" value={`${data.approvalTurnaroundTime.avgHours} hours (avg)`} />
+      <p className="text-muted small mt-2">
+        Figures above are hospital-wide; department-scoped filtering can be added if you need
+        numbers restricted to just your own department.
+      </p>
     </div>
   );
 }
@@ -403,11 +411,8 @@ function PhysicianReport({ data }) {
   return (
     <div>
       <h5 className="report-section-title">Personal Rotation Progress</h5>
-      <Row label="Individual Rotation Completion" value={`${irc.pct}%`} subtext={`${irc.completed}/${irc.totalRequired} curriculum blocks completed`} />
-      <Row label="Specialty Exposure" value={`${se.pct}%`} subtext={`${se.distinctDepartments}/${se.totalDepartments} departments rotated through`} />
-      <Row label="Notification Delivery Rate" value={`${nd.pct}%`} subtext={`${nd.succeeded}/${nd.total} notifications delivered`} />
 
-      <div className="row mt-4">
+      <div className="row mt-2">
         <div className="col-md-4 text-center">
           <h6 className="mb-2">Rotation Completion</h6>
           <ChartBox><Doughnut data={ircData} options={doughnutOptions} /></ChartBox>
@@ -424,6 +429,11 @@ function PhysicianReport({ data }) {
           <div className="text-muted small">{nd.succeeded}/{nd.total} delivered ({nd.pct}%)</div>
         </div>
       </div>
+
+      <h6 className="mt-4 mb-2">Detailed Figures</h6>
+      <Row label="Individual Rotation Completion" value={`${irc.pct}%`} subtext={`${irc.completed}/${irc.totalRequired} curriculum blocks completed`} />
+      <Row label="Specialty Exposure" value={`${se.pct}%`} subtext={`${se.distinctDepartments}/${se.totalDepartments} departments rotated through`} />
+      <Row label="Notification Delivery Rate" value={`${nd.pct}%`} subtext={`${nd.succeeded}/${nd.total} notifications delivered`} />
     </div>
   );
 }
