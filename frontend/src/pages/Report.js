@@ -328,9 +328,11 @@ function SchedulerReport({ data }) {
     }],
   };
 
+  const publicationTimelinessAvailable = data.schedulePublicationTimeliness.avgDaysAhead !== null
+    && data.schedulePublicationTimeliness.avgDaysAhead !== undefined;
   const publicationData = {
     labels: ['Days ahead (avg)'],
-    datasets: [{ label: 'Days', data: [data.schedulePublicationTimeliness.avgDaysAhead], backgroundColor: '#4A90D9' }],
+    datasets: [{ label: 'Days', data: [data.schedulePublicationTimeliness.avgDaysAhead || 0], backgroundColor: '#4A90D9' }],
   };
 
   const turnaroundData = {
@@ -362,7 +364,15 @@ function SchedulerReport({ data }) {
       <div className="row mt-3">
         <div className="col-md-4">
           <h6 className="mb-2">Publication Timeliness</h6>
-          <ChartBox><Bar data={publicationData} options={countBarOptions} /></ChartBox>
+          {publicationTimelinessAvailable ? (
+            <ChartBox><Bar data={publicationData} options={countBarOptions} /></ChartBox>
+          ) : (
+            <ChartBox>
+              <div className="d-flex align-items-center justify-content-center h-100 text-muted small">
+                N/A -- no rotation schedules yet
+              </div>
+            </ChartBox>
+          )}
         </div>
         <div className="col-md-4">
           <h6 className="mb-2">Approval Turnaround</h6>
@@ -378,8 +388,9 @@ function SchedulerReport({ data }) {
       <ChartBox height={300}><Bar data={capacityGroupedData} options={groupedCapacityOptions} /></ChartBox>
 
       <h6 className="mt-4 mb-2">Detailed Figures</h6>
-      <Row label="Schedule Publication Timeliness" value={`${data.schedulePublicationTimeliness.avgDaysAhead} days ahead (avg)`}
-        subtext={`across ${data.schedulePublicationTimeliness.sampleSize} published blocks`} />
+      <Row label="Schedule Publication Timeliness"
+        value={publicationTimelinessAvailable ? `${data.schedulePublicationTimeliness.avgDaysAhead} days ahead (avg)` : 'N/A'}
+        subtext={publicationTimelinessAvailable ? `across ${data.schedulePublicationTimeliness.sampleSize} published blocks` : 'No rotation schedules yet'} />
       <Row label="Conflict-Free Scheduling" value={`${data.conflictFreeScheduling.conflicts} conflicts`}
         subtext="overlapping assignments for the same physician" />
       <Row label="Rotation Block Completion" value={`${data.rotationBlockCompletion.pct}%`}

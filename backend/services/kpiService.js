@@ -223,8 +223,17 @@ async function criticalUnitCoverage() {
   return results;
 }
 
-/** 13. Schedule Publication Timeliness = avg(days between publish date and block start date) */
+/** 13. Schedule Publication Timeliness = avg(days between publish date and block start date)
+ * Only meaningful once real rotation schedules exist -- with an empty
+ * Schedules page there is nothing to be "on time" or "late" for, so this
+ * returns null (rendered as N/A) until at least one RotationAssignment has
+ * been created. */
 async function schedulePublicationTimeliness() {
+  const totalAssignments = await RotationAssignment.count();
+  if (totalAssignments === 0) {
+    return { avgDaysAhead: null, sampleSize: 0 };
+  }
+
   const blocks = await Block.findAll({ where: { published_at: { [Op.ne]: null } } });
   const daysArr = blocks.map((b) => {
     const start = new Date(b.start_date);
