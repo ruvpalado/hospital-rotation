@@ -6,7 +6,8 @@ const scheduleController = require('../controllers/scheduleController');
 
 router.get('/', authenticate, withAudit('view', 'schedule'), scheduleController.listSchedules);
 router.get('/:id', authenticate, withAudit('view', 'schedule'), scheduleController.getSchedule);
-router.post('/', authenticate, requireRole('admin', 'scheduler'), withAudit('create', 'schedule'), scheduleController.createSchedule);
+// Only the Master Scheduler may create new rotation assignments.
+router.post('/', authenticate, requireRole('scheduler'), withAudit('create', 'schedule'), scheduleController.createSchedule);
 // Only the Master Scheduler may change a week's attendance status (attended /
 // maternity_leave / annual_leave / absent) -- admins and dept heads can view
 // schedules but not edit attendance directly.

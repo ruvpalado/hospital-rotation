@@ -36,9 +36,9 @@ export default function ScheduleViewer() {
   // Only the Master Scheduler can change a week's attendance status; other
   // roles see schedules read-only.
   const canEditWeeks = user?.role === 'scheduler';
-  // Creating new rotation assignments matches the backend's POST /api/schedules
-  // permission (admin or scheduler).
-  const canAddSchedule = ['admin', 'scheduler'].includes(user?.role);
+  // Only the Master Scheduler can create new rotation assignments, matching
+  // the backend's POST /api/schedules permission.
+  const canAddSchedule = user?.role === 'scheduler';
 
   const load = () => {
     setLoading(true);
