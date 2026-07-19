@@ -35,10 +35,14 @@ import './dashboards/ChartSetup';
  * Layout: the on-screen "paper" look (gray backdrop, white page, 2.54cm
  * padding, shadow) is applied with INLINE styles rather than a stylesheet
  * class -- this guarantees the margin renders regardless of any CSS
- * load-order/specificity/caching issue elsewhere in the app. Only the
- * print-only override still needs a <style> tag with !important, since
- * @media queries can't be expressed inline and need to beat the inline
- * styles when printing.
+ * load-order/specificity/caching issue elsewhere in the app.
+ *
+ * Print/PDF output matches the on-screen margin exactly: @page margin is set
+ * to 0 (browser print-margin handling is inconsistent across dialogs), and
+ * #report-root's inline 2.54cm padding is left intact for print instead of
+ * being zeroed out, so the same padding value is the sole source of margin
+ * in both contexts -- what you see on screen is what gets printed/saved as
+ * PDF.
  */
 export default function Report() {
   const { user } = useAuth();
@@ -54,11 +58,11 @@ export default function Report() {
   return (
     <div id="report-page-bg" style={{ background: '#e9ecef', minHeight: '100vh', padding: '32px 16px' }}>
       <style>{`
-        @page { margin: 2.54cm; }
+        @page { margin: 0; }
         @media print {
           .no-print { display: none !important; }
-          #report-page-bg { background: none !important; min-height: 0 !important; padding: 0 !important; }
-          #report-root { box-shadow: none !important; max-width: none !important; padding: 0 !important; margin: 0 !important; border-radius: 0 !important; }
+          #report-page-bg { background: #fff !important; min-height: 0 !important; padding: 0 !important; }
+          #report-root { box-shadow: none !important; max-width: none !important; margin: 0 !important; border-radius: 0 !important; }
           .chart-box { page-break-inside: avoid; }
           .report-section-title, h5, h6 { page-break-after: avoid; }
         }
