@@ -13,7 +13,9 @@ export default function ScheduleViewer() {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const canEditWeeks = ['admin', 'scheduler', 'dept_head'].includes(user?.role);
+  // Only the Master Scheduler can change a week's attendance status; other
+  // roles see schedules read-only.
+  const canEditWeeks = user?.role === 'scheduler';
 
   const load = () => {
     setLoading(true);
