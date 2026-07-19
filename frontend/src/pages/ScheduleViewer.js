@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useColorMaps, colorFor } from '../utils/colorCoding';
+import AddScheduleModal from './AddScheduleModal';
 
 const WEEK_STATUS_OPTIONS = ['pending', 'attended', 'maternity_leave', 'annual_leave', 'absent'];
 
@@ -12,10 +13,14 @@ export default function ScheduleViewer() {
   const { siteColors, deptColors } = useColorMaps();
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Only the Master Scheduler can change a week's attendance status; other
   // roles see schedules read-only.
   const canEditWeeks = user?.role === 'scheduler';
+  // Creating new rotation assignments matches the backend's POST /api/schedules
+  // permission (admin or scheduler).
+  const canAddSchedule = ['admin', 'scheduler'].includes(user?.role);
 
   const load = () => {
     setLoading(true);
@@ -23,6 +28,11 @@ export default function ScheduleViewer() {
   };
 
   useEffect(load, []);
+
+  const handleCreated = () => {
+    setShowAddModal(false);
+    load();
+  };
 
   const updateWeek = async (weekId, status) => {
     await api.patch(`/schedules/weeks/${weekId}`, { status });
@@ -33,7 +43,17 @@ export default function ScheduleViewer() {
 
   return (
     <div className="container-fluid py-4">
-      <h4 className="mb-3">{t('schedules')}</h4>
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h4 className="mb-0">{t('schedules')}</h4>
+        {canAddSchedule && (
+          <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+            + Add Schedule
+          </button>
+        )}
+      </div>
+      {showAddModal && (
+        <AddScheduleModal onClose={() => setShowAddModal(false)} onCreated={handleCreated} />
+      )}
       {schedules.length === 0 && <p className="text-muted">No rotation assignments found.</p>}
       <div className="row g-3">
         {schedules.map((s) => (

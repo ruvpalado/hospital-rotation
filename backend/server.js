@@ -17,6 +17,7 @@ const notificationRoutes = require('./routes/notifications');
 const auditLogRoutes = require('./routes/auditlogs');
 const kpiRoutes = require('./routes/kpis');
 const blockRoutes = require('./routes/blocks');
+const userRoutes = require('./routes/users');
 
 const app = express();
 app.use(helmet());
@@ -38,6 +39,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/auditlogs', auditLogRoutes);
 app.use('/api/kpis', kpiRoutes);
 app.use('/api/blocks', blockRoutes);
+app.use('/api/users', userRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 // eslint-disable-next-line no-unused-vars
