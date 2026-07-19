@@ -14,6 +14,8 @@ export default function ScheduleViewer() {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
 
   // Only the Master Scheduler can change a week's attendance status; other
   // roles see schedules read-only.
@@ -39,11 +41,30 @@ export default function ScheduleViewer() {
     load();
   };
 
+  const runSearch = (e) => {
+    e.preventDefault();
+    setAppliedSearch(searchInput.trim().toLowerCase());
+  };
+
+  const clearSearch = () => {
+    setSearchInput('');
+    setAppliedSearch('');
+  };
+
+  // Match against physician name (Doctor) and site name (Facility).
+  const visibleSchedules = appliedSearch
+    ? schedules.filter((s) => {
+        const doctor = (s.physician?.full_name || '').toLowerCase();
+        const facility = (s.site?.name || '').toLowerCase();
+        return doctor.includes(appliedSearch) || facility.includes(appliedSearch);
+      })
+    : schedules;
+
   if (loading) return <div className="text-center mt-5">Loading schedules...</div>;
 
   return (
     <div className="container-fluid py-4">
-      <div className="d-flex justify-content-between align-items-center mb-3">
+      <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <h4 className="mb-0">{t('schedules')}</h4>
         {canAddSchedule && (
           <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
@@ -51,12 +72,37 @@ export default function ScheduleViewer() {
           </button>
         )}
       </div>
+
+      <form className="d-flex mb-3 gap-2" onSubmit={runSearch}>
+        <input
+          type="text"
+          className="form-control"
+          style={{ maxWidth: 360 }}
+          placeholder="Search by Doctor name or Facility..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+        />
+        <button type="submit" className="btn btn-outline-primary">Search</button>
+        {appliedSearch && (
+          <button type="button" className="btn btn-outline-secondary" onClick={clearSearch}>Clear</button>
+        )}
+      </form>
+      {appliedSearch && (
+        <p className="text-muted small">
+          Showing {visibleSchedules.length} of {schedules.length} schedules matching "{searchInput}"
+        </p>
+      )}
+
       {showAddModal && (
         <AddScheduleModal onClose={() => setShowAddModal(false)} onCreated={handleCreated} />
       )}
-      {schedules.length === 0 && <p className="text-muted">No rotation assignments found.</p>}
+      {visibleSchedules.length === 0 && (
+        <p className="text-muted">
+          {appliedSearch ? 'No schedules match that search.' : 'No rotation assignments found.'}
+        </p>
+      )}
       <div className="row g-3">
-        {schedules.map((s) => (
+        {visibleSchedules.map((s) => (
           <div className="col-md-6 col-lg-4" key={s.id}>
             <div className="card shadow-sm h-100">
               <div className="card-header d-flex justify-content-between align-items-center"
