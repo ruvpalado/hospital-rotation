@@ -32,9 +32,9 @@ import './dashboards/ChartSetup';
  * Charts come first in each section, with the detailed numeric figures
  * ("Detailed Figures") placed at the bottom for reference.
  *
- * Print layout: @page sets real page margins for the printed/PDF output
- * (2cm top/bottom, 2.54cm right, 1.5cm left), and #report-root gets its own
- * comfortable padding on screen so the content isn't flush against the
+ * Print layout: @page sets a uniform 2.54cm (1 inch) margin on all sides for
+ * the printed/PDF output (Word "Normal" margin), and #report-root gets its
+ * own comfortable padding on screen so the content isn't flush against the
  * browser edges.
  *
  * Department Capacity Utilization is charted as a grouped bar: sites on the
@@ -57,10 +57,7 @@ export default function Report() {
     <div className="container py-4" id="report-root">
       <style>{`
         @page {
-          margin-top: 2cm;
-          margin-right: 2.54cm;
-          margin-bottom: 2cm;
-          margin-left: 1.5cm;
+          margin: 2.54cm;
         }
         @media print {
           .no-print { display: none !important; }
