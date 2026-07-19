@@ -32,13 +32,13 @@ import './dashboards/ChartSetup';
  * Charts come first in each section, with the detailed numeric figures
  * ("Detailed Figures") placed at the bottom for reference.
  *
- * Layout: #report-root is rendered as an actual "paper" page -- white
- * background, fixed max width, a real 2.54cm padding on every side -- sitting
- * on a light gray backdrop, so the margin is visibly obvious on screen, not
- * just something that only shows up once you print. @page then gives the
- * printed/PDF output the same 2.54cm margin on all sides, and the on-screen
- * chrome (gray backdrop, shadow, toolbar) is stripped out for print so the
- * printed page isn't double-margined.
+ * Layout: the on-screen "paper" look (gray backdrop, white page, 2.54cm
+ * padding, shadow) is applied with INLINE styles rather than a stylesheet
+ * class -- this guarantees the margin renders regardless of any CSS
+ * load-order/specificity/caching issue elsewhere in the app. Only the
+ * print-only override still needs a <style> tag with !important, since
+ * @media queries can't be expressed inline and need to beat the inline
+ * styles when printing.
  */
 export default function Report() {
   const { user } = useAuth();
@@ -52,32 +52,13 @@ export default function Report() {
   const generatedAt = new Date().toLocaleString();
 
   return (
-    <div className="report-page-bg">
+    <div id="report-page-bg" style={{ background: '#e9ecef', minHeight: '100vh', padding: '32px 16px' }}>
       <style>{`
-        @page {
-          margin: 2.54cm;
-        }
-        .report-page-bg {
-          background: #e9ecef;
-          min-height: 100vh;
-          padding: 32px 16px;
-        }
-        .report-toolbar {
-          max-width: 900px;
-          margin: 0 auto 16px auto;
-        }
-        #report-root {
-          background: #fff;
-          max-width: 900px;
-          margin: 0 auto;
-          padding: 2.54cm;
-          box-shadow: 0 1px 8px rgba(0, 0, 0, 0.18);
-          border-radius: 4px;
-        }
+        @page { margin: 2.54cm; }
         @media print {
           .no-print { display: none !important; }
-          .report-page-bg { background: none; min-height: 0; padding: 0; }
-          #report-root { box-shadow: none; max-width: none; padding: 0; margin: 0; border-radius: 0; }
+          #report-page-bg { background: none !important; min-height: 0 !important; padding: 0 !important; }
+          #report-root { box-shadow: none !important; max-width: none !important; padding: 0 !important; margin: 0 !important; border-radius: 0 !important; }
           .chart-box { page-break-inside: avoid; }
           .report-section-title, h5, h6 { page-break-after: avoid; }
         }
@@ -87,12 +68,25 @@ export default function Report() {
         .chart-box { position: relative; margin-bottom: 8px; }
       `}</style>
 
-      <div className="d-flex justify-content-between align-items-center report-toolbar no-print">
+      <div
+        className="no-print d-flex justify-content-between align-items-center"
+        style={{ maxWidth: 900, margin: '0 auto 16px auto' }}
+      >
         <h4 className="mb-0">Generate Report</h4>
         <button className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
       </div>
 
-      <div id="report-root">
+      <div
+        id="report-root"
+        style={{
+          background: '#fff',
+          maxWidth: 900,
+          margin: '0 auto',
+          padding: '2.54cm',
+          boxShadow: '0 1px 8px rgba(0, 0, 0, 0.18)',
+          borderRadius: 4,
+        }}
+      >
         <h3 className="mb-0">OBGYN Master Rotation — {roleReportTitle(user?.role)}</h3>
         <p className="text-muted">
           Generated {generatedAt} for {user?.fullName} ({user?.roleLabel})
