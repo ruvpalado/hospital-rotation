@@ -7,6 +7,15 @@ import api from '../api/axios';
  * startDate, endDate (see backend/models/RotationAssignment.js). Submitting
  * calls POST /api/schedules, which also auto-creates the 4 RotationWeek rows
  * for the assignment's block.
+ *
+ * Site and Department are two separate dropdowns (not one combined
+ * "Site / Department" picker): choosing a Site filters the Department
+ * dropdown down to only the departments actually offered at that site (via
+ * backend/seed/data.js SITE_DEPARTMENTS), since not every department exists
+ * at every hospital. Under the hood the Department dropdown's value is still
+ * the SiteDepartment join-row id (siteDepartmentId) the backend expects --
+ * picking "Site" then "Department" together is equivalent to picking one
+ * SiteDepartment row, just split into two friendlier selects.
  */
 export default function AddScheduleModal({ onClose, onCreated }) {
   const [physicians, setPhysicians] = useState([]);
@@ -14,6 +23,7 @@ export default function AddScheduleModal({ onClose, onCreated }) {
   const [blocks, setBlocks] = useState([]);
 
   const [physicianId, setPhysicianId] = useState('');
+  const [siteId, setSiteId] = useState('');
   const [siteDepartmentId, setSiteDepartmentId] = useState('');
   const [blockId, setBlockId] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -27,6 +37,25 @@ export default function AddScheduleModal({ onClose, onCreated }) {
     api.get('/sites/site-departments').then((res) => setSiteDepartments(res.data));
     api.get('/blocks').then((res) => setBlocks(res.data));
   }, []);
+
+  // Only offer sites that actually have at least one department linked, so
+  // the Site dropdown never leads to an empty Department dropdown.
+  const sites = [];
+  siteDepartments.forEach((sd) => {
+    if (sd.Site && !sites.some((s) => s.id === sd.Site.id)) sites.push(sd.Site);
+  });
+  sites.sort((a, b) => a.name.localeCompare(b.name));
+
+  // Department dropdown is scoped to whichever site is currently selected.
+  const departmentOptions = siteId
+    ? siteDepartments.filter((sd) => sd.Site && String(sd.Site.id) === String(siteId))
+    : [];
+
+  const handleSiteChange = (e) => {
+    setSiteId(e.target.value);
+    // The previously selected department may not exist at the new site.
+    setSiteDepartmentId('');
+  };
 
   // When a block is picked, default the start/end dates to that block's dates
   // (matches the "3 of 4 weeks" rule -- weeks are generated from these dates).
@@ -87,15 +116,34 @@ export default function AddScheduleModal({ onClose, onCreated }) {
               </div>
 
               <div className="mb-3">
-                <label className="form-label">Site / Department</label>
-                <select className="form-select" value={siteDepartmentId} onChange={(e) => setSiteDepartmentId(e.target.value)} required>
-                  <option value="">-- select site + department --</option>
-                  {siteDepartments.map((sd) => (
+                <label className="form-label">Site</label>
+                <select className="form-select" value={siteId} onChange={handleSiteChange} required>
+                  <option value="">-- select site --</option>
+                  {sites.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label">Department</label>
+                <select
+                  className="form-select"
+                  value={siteDepartmentId}
+                  onChange={(e) => setSiteDepartmentId(e.target.value)}
+                  required
+                  disabled={!siteId}
+                >
+                  <option value="">{siteId ? '-- select department --' : '-- select a site first --'}</option>
+                  {departmentOptions.map((sd) => (
                     <option key={sd.id} value={sd.id}>
-                      {sd.Site?.name} &mdash; {sd.Department?.code} ({sd.Department?.name})
+                      {sd.Department?.code} ({sd.Department?.name})
                     </option>
                   ))}
                 </select>
+                {siteId && (
+                  <div className="form-text">Showing only departments offered at the selected site.</div>
+                )}
               </div>
 
               <div className="mb-3">
