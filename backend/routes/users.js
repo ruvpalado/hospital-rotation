@@ -12,4 +12,8 @@ router.get('/', authenticate, requireRole('admin', 'scheduler', 'dept_head'), us
 router.delete('/:id', authenticate, requireRole('admin', 'scheduler'), withAudit('delete', 'user'), userController.deactivate);
 router.post('/:id/reactivate', authenticate, requireRole('admin', 'scheduler'), withAudit('edit', 'user'), userController.reactivate);
 
+// Admin-only maintenance action: hard-delete duplicate seed users, keeping
+// exactly one account per role.
+router.post('/cleanup-duplicates', authenticate, requireRole('admin'), userController.cleanupDuplicates);
+
 module.exports = router;

@@ -1,4 +1,6 @@
-const { User, Role, Site, Department, AuditLog } = require('../models');
+const {
+  User, Role, Site, Department, AuditLog, Notification, RotationAssignment, ChangeRequest,
+} = require('../models');
 
 /**
  * List users, optionally filtered by role (e.g. ?role=physician).
@@ -66,6 +68,72 @@ exports.reactivate = async (req, res) => {
   });
 
   res.json(serialize(user));
+};
+
+/**
+ * One-time / repeatable maintenance action: hard-deletes duplicate seed
+ * users, keeping exactly one account per role (the earliest-created / lowest
+ * id -- for admin this is the demo login used throughout setup, so the
+ * caller's own session never breaks). Unlike deactivate(), this permanently
+ * removes rows rather than soft-deleting.
+ *
+ * Before deleting a user, dependent rows that would otherwise violate a
+ * foreign key are cleaned up: notifications addressed to the removed user
+ * are deleted (they're per-user reminders with no meaning once the account
+ * is gone), and change-request / rotation-assignment references to the
+ * removed user are nulled out where the column allows it. The current
+ * authenticated caller is never deleted, regardless of role.
+ */
+exports.cleanupDuplicates = async (req, res) => {
+  try {
+    const roles = await Role.findAll();
+    const keptUsers = [];
+    const deletedUserIds = [];
+
+    for (const role of roles) {
+      const usersInRole = await User.findAll({ where: { role_id: role.id }, order: [['id', 'ASC']] });
+      if (usersInRole.length === 0) continue;
+
+      // Prefer keeping whichever account is currently logged in for its own
+      // role (never lock the caller out); otherwise keep the lowest id.
+      const keep = usersInRole.find((u) => u.id === req.user.id) || usersInRole[0];
+      keptUsers.push(keep);
+
+      const toDelete = usersInRole.filter((u) => u.id !== keep.id);
+      deletedUserIds.push(...toDelete.map((u) => u.id));
+    }
+
+    if (deletedUserIds.length > 0) {
+      await Notification.destroy({ where: { user_id: deletedUserIds } });
+      await ChangeRequest.update({ requested_by_id: null }, { where: { requested_by_id: deletedUserIds } });
+      await ChangeRequest.update({ resolved_by_id: null }, { where: { resolved_by_id: deletedUserIds } });
+      await RotationAssignment.update({ approved_by_id: null }, { where: { approved_by_id: deletedUserIds } });
+      // Rotation assignments belonging to a removed physician have no valid
+      // owner left -- remove them (their weeks/change-requests cascade via
+      // the existing associations' onDelete behavior, or are already empty
+      // after a prior schedules cleanup).
+      await RotationAssignment.destroy({ where: { physician_id: deletedUserIds } });
+      await AuditLog.update({ user_id: null }, { where: { user_id: deletedUserIds } });
+      await User.destroy({ where: { id: deletedUserIds } });
+    }
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'delete',
+      entity_type: 'user_cleanup',
+      details: { deletedCount: deletedUserIds.length, keptUserIds: keptUsers.map((u) => u.id) },
+    });
+
+    const remaining = await User.findAll({ include: [Role], order: [['role_id', 'ASC']] });
+    res.json({
+      message: 'Duplicate users removed, one kept per role',
+      deletedCount: deletedUserIds.length,
+      remaining: remaining.map(serialize),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to clean up duplicate users', details: err.message });
+  }
 };
 
 function serialize(u) {
