@@ -4,11 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
+const EMPTY_FORM = { fullName: '', email: '', password: '', phone: '', roleKey: '', siteId: '', departmentId: '' };
+
 export default function Register() {
   const { t } = useTranslation();
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ fullName: '', email: '', password: '', phone: '', roleKey: 'physician', siteId: '', departmentId: '' });
+  const [form, setForm] = useState({ ...EMPTY_FORM });
   const [sites, setSites] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [error, setError] = useState('');
@@ -29,6 +31,12 @@ export default function Register() {
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed');
     }
+  };
+
+  const handleReturnToLogin = () => {
+    setForm({ ...EMPTY_FORM });
+    setError('');
+    navigate('/login');
   };
 
   const isHospitalAdmin = form.roleKey === 'hospital_admin';
@@ -57,7 +65,8 @@ export default function Register() {
           </div>
           <div className="mb-2">
             <label className="form-label">Role</label>
-            <select className="form-select" value={form.roleKey} onChange={handleChange('roleKey')}>
+            <select className="form-select" value={form.roleKey} onChange={handleChange('roleKey')} required>
+              <option value="">-- select role --</option>
               <option value="physician">Physician</option>
               <option value="dept_head">Department Head</option>
               <option value="scheduler">Master Scheduler</option>
@@ -86,6 +95,9 @@ export default function Register() {
             </select>
           </div>
           <button type="submit" className="btn btn-primary w-100">{t('register')}</button>
+          <button type="button" className="btn btn-outline-secondary w-100 mt-2" onClick={handleReturnToLogin}>
+            Return to Log In
+          </button>
         </form>
       </div>
     </div>
