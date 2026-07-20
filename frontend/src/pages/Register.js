@@ -17,8 +17,26 @@ export default function Register() {
 
   useEffect(() => {
     api.get('/sites').catch(() => {}).then((res) => res && setSites(res.data));
-    api.get('/departments').catch(() => {}).then((res) => res && setDepartments(res.data));
   }, []);
+
+  // Department options depend on the chosen Site -- certain departments are
+  // only offered at specific hospitals (see backend/seed/data.js
+  // SITE_DEPARTMENTS). Re-fetches whenever siteId changes; with no site
+  // selected yet, falls back to the full unfiltered department list so the
+  // dropdown still has options to browse.
+  useEffect(() => {
+    const params = form.siteId ? { siteId: form.siteId } : {};
+    api.get('/departments', { params }).catch(() => {}).then((res) => res && setDepartments(res.data));
+  }, [form.siteId]);
+
+  // If the previously chosen department isn't offered at the newly chosen
+  // site, clear it rather than silently submitting a stale/invalid pairing.
+  useEffect(() => {
+    if (form.departmentId && !departments.some((d) => String(d.id) === String(form.departmentId))) {
+      setForm((f) => ({ ...f, departmentId: '' }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [departments]);
 
   const handleChange = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
@@ -93,6 +111,9 @@ export default function Register() {
               <option value="">-- none --</option>
               {departments.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
             </select>
+            {form.siteId && (
+              <div className="form-text">Showing only departments offered at the selected site.</div>
+            )}
           </div>
           <button type="submit" className="btn btn-primary w-100">{t('register')}</button>
           <button type="button" className="btn btn-outline-secondary w-100 mt-2" onClick={handleReturnToLogin}>

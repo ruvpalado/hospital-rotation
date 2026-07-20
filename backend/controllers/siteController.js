@@ -5,7 +5,20 @@ exports.listSites = async (req, res) => {
   res.json(sites);
 };
 
+/**
+ * List departments. Public (no auth) since the pre-login Registration form
+ * needs this. Optionally filtered to just the departments actually offered
+ * at one site via ?siteId=, so Register.js can make its Department dropdown
+ * depend on the chosen Site without needing the authenticated
+ * /sites/site-departments endpoint (which also exposes capacity numbers that
+ * stay behind login).
+ */
 exports.listDepartments = async (req, res) => {
+  const { siteId } = req.query;
+  if (siteId) {
+    const links = await SiteDepartment.findAll({ where: { site_id: siteId }, include: [Department] });
+    return res.json(links.map((l) => l.Department));
+  }
   const departments = await Department.findAll();
   res.json(departments);
 };
