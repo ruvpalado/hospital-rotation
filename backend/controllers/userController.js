@@ -81,8 +81,9 @@ exports.reactivate = async (req, res) => {
  * foreign key are cleaned up: notifications addressed to the removed user
  * are deleted (they're per-user reminders with no meaning once the account
  * is gone), and change-request / rotation-assignment references to the
- * removed user are nulled out where the column allows it. The current
- * authenticated caller is never deleted, regardless of role.
+ * removed user are nulled out where the column allows it, or deleted where
+ * the referencing column is required. The current authenticated caller is
+ * never deleted, regardless of role.
  */
 exports.cleanupDuplicates = async (req, res) => {
   try {
@@ -105,7 +106,11 @@ exports.cleanupDuplicates = async (req, res) => {
 
     if (deletedUserIds.length > 0) {
       await Notification.destroy({ where: { user_id: deletedUserIds } });
-      await ChangeRequest.update({ requested_by_id: null }, { where: { requested_by_id: deletedUserIds } });
+      // requested_by_id is required (NOT NULL), so a change request whose
+      // requester is being removed has no valid owner left -- delete it
+      // rather than nulling a required column.
+      await ChangeRequest.destroy({ where: { requested_by_id: deletedUserIds } });
+      // resolved_by_id is optional -- safe to null out.
       await ChangeRequest.update({ resolved_by_id: null }, { where: { resolved_by_id: deletedUserIds } });
       await RotationAssignment.update({ approved_by_id: null }, { where: { approved_by_id: deletedUserIds } });
       // Rotation assignments belonging to a removed physician have no valid
