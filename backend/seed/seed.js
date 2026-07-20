@@ -16,10 +16,12 @@ async function run() {
 
   // ---------- Roles ----------
   const roleDefs = [
-    { key: 'admin', label: 'Hospital Administrator' },
+    { key: 'admin', label: 'Admin' },
     { key: 'scheduler', label: 'Master Scheduler' },
     { key: 'dept_head', label: 'Department Head' },
     { key: 'physician', label: 'Physician' },
+    { key: 'program_manager', label: 'Program Manager' },
+    { key: 'hospital_admin', label: 'Hospital Administrator' },
   ];
   const roles = {};
   for (const r of roleDefs) roles[r.key] = await Role.create(r);

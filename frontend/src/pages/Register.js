@@ -31,6 +31,8 @@ export default function Register() {
     }
   };
 
+  const isHospitalAdmin = form.roleKey === 'hospital_admin';
+
   return (
     <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light py-4">
       <div className="card shadow p-4" style={{ width: 460 }}>
@@ -59,15 +61,22 @@ export default function Register() {
               <option value="physician">Physician</option>
               <option value="dept_head">Department Head</option>
               <option value="scheduler">Master Scheduler</option>
-              <option value="admin">Hospital Administrator</option>
+              <option value="admin">Admin</option>
+              <option value="program_manager">Program Manager</option>
+              <option value="hospital_admin">Hospital Administrator</option>
             </select>
           </div>
           <div className="mb-2">
-            <label className="form-label">{t('site')}</label>
-            <select className="form-select" value={form.siteId} onChange={handleChange('siteId')}>
+            <label className="form-label">
+              {t('site')}{isHospitalAdmin && <span className="text-danger"> * required for Hospital Administrator</span>}
+            </label>
+            <select className="form-select" value={form.siteId} onChange={handleChange('siteId')} required={isHospitalAdmin}>
               <option value="">-- none --</option>
               {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
+            {isHospitalAdmin && (
+              <div className="form-text">Your dashboard will only show data for the hospital selected here.</div>
+            )}
           </div>
           <div className="mb-3">
             <label className="form-label">{t('department')}</label>

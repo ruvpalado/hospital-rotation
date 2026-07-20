@@ -16,11 +16,18 @@ async function getPhysicianRoleId() {
   _physicianRoleId = role ? role.id : -1;
   return _physicianRoleId;
 }
-async function countPhysicians() {
-  return User.count({ where: { role_id: await getPhysicianRoleId() } });
+/** siteId, when provided, scopes the physician count/list to physicians
+ * whose home_site_id matches -- used by the Hospital Administrator role so
+ * its KPIs only reflect physicians based at that one hospital. */
+async function countPhysicians(siteId) {
+  const where = { role_id: await getPhysicianRoleId() };
+  if (siteId) where.home_site_id = siteId;
+  return User.count({ where });
 }
-async function listPhysicians() {
-  return User.findAll({ where: { role_id: await getPhysicianRoleId() } });
+async function listPhysicians(siteId) {
+  const where = { role_id: await getPhysicianRoleId() };
+  if (siteId) where.home_site_id = siteId;
+  return User.findAll({ where });
 }
 
 function stdev(values) {
@@ -49,10 +56,25 @@ async function getAssignmentsWithWeeks(where = {}) {
   });
 }
 
-/** 1. Rotation Coverage Rate = physicians with >=1 active assignment in block / total physicians * 100 */
-async function rotationCoverageRate(blockId) {
-  const physicianCountTotal = await countPhysicians();
-  const assignments = await RotationAssignment.findAll({ where: blockId ? { block_id: blockId } : {} });
+/** Filters an already-fetched assignment list (each row includes
+ * SiteDepartment -> Site via getAssignmentsWithWeeks) down to one site, when
+ * siteId is provided. Shared by every KPI that needs Hospital Administrator
+ * site-scoping but otherwise queries hospital-wide. */
+function filterBySite(assignments, siteId) {
+  if (!siteId) return assignments;
+  return assignments.filter((a) => a.SiteDepartment.Site.id === Number(siteId));
+}
+
+/** 1. Rotation Coverage Rate = physicians with >=1 active assignment in block / total physicians * 100
+ * siteId (optional) scopes both the physician denominator and the
+ * assignments considered to one hospital site, for the Hospital
+ * Administrator role. */
+async function rotationCoverageRate(blockId, siteId) {
+  const physicianCountTotal = await countPhysicians(siteId);
+  const assignments = filterBySite(
+    await getAssignmentsWithWeeks(blockId ? { block_id: blockId } : {}),
+    siteId
+  );
   const distinctPhysicians = new Set(assignments.map((a) => a.physician_id));
   const rate = physicianCountTotal > 0 ? (distinctPhysicians.size / physicianCountTotal) * 100 : 0;
   return { assignedPhysicians: distinctPhysicians.size, totalPhysicians: physicianCountTotal, ratePct: round(rate) };
@@ -85,11 +107,12 @@ async function siteUtilization(blockId) {
   return countsBySite;
 }
 
-/** 4. Curriculum Compliance = completed block-assignments / expected (physicians * 13 blocks) * 100 */
-async function curriculumCompliance() {
-  const physicians = await countPhysicians();
+/** 4. Curriculum Compliance = completed block-assignments / expected (physicians * 13 blocks) * 100
+ * siteId (optional) scopes to one hospital's physicians/assignments. */
+async function curriculumCompliance(siteId) {
+  const physicians = await countPhysicians(siteId);
   const expected = physicians * TOTAL_CURRICULUM_BLOCKS;
-  const assignments = await getAssignmentsWithWeeks();
+  const assignments = filterBySite(await getAssignmentsWithWeeks(), siteId);
   const completed = assignments.filter((a) => isRotationComplete(a.weeks)).length;
   const pct = expected > 0 ? round((completed / expected) * 100) : 0;
   return { completed, expected, pct };
@@ -103,9 +126,13 @@ async function rotationBlockCompletion(blockId) {
   return { completed, total: assignments.length, pct };
 }
 
-/** 6. Conflict-Free Scheduling = count of overlapping-date assignments for the same physician */
-async function conflictCount(blockId) {
-  const assignments = await getAssignmentsWithWeeks(blockId ? { block_id: blockId } : {});
+/** 6. Conflict-Free Scheduling = count of overlapping-date assignments for the same physician
+ * siteId (optional) scopes conflicts to assignments at one hospital site. */
+async function conflictCount(blockId, siteId) {
+  const assignments = filterBySite(
+    await getAssignmentsWithWeeks(blockId ? { block_id: blockId } : {}),
+    siteId
+  );
   const byPhysician = {};
   assignments.forEach((a) => {
     byPhysician[a.physician_id] = byPhysician[a.physician_id] || [];
@@ -163,9 +190,13 @@ async function rotationEquity() {
   return { counts, equityPct };
 }
 
-/** 10. Department Capacity Utilization = filled slots / capacity per block * 100 */
-async function departmentCapacityUtilization(blockId) {
-  const siteDepartments = await SiteDepartment.findAll({ include: [Site, Department] });
+/** 10. Department Capacity Utilization = filled slots / capacity per block * 100
+ * siteId (optional) restricts to one hospital's site-department slots. */
+async function departmentCapacityUtilization(blockId, siteId) {
+  const siteDepartments = await SiteDepartment.findAll({
+    where: siteId ? { site_id: siteId } : {},
+    include: [Site, Department],
+  });
   const results = [];
   for (const sd of siteDepartments) {
     const filled = await RotationAssignment.count({
@@ -183,9 +214,10 @@ async function departmentCapacityUtilization(blockId) {
   return results;
 }
 
-/** 11. Site Rotation Compliance = required department rotations covered at site / required * 100 */
-async function siteRotationCompliance(blockId) {
-  const sites = await Site.findAll({ include: [Department] });
+/** 11. Site Rotation Compliance = required department rotations covered at site / required * 100
+ * siteId (optional) restricts the result to just that one site's row. */
+async function siteRotationCompliance(blockId, siteId) {
+  const sites = await Site.findAll({ where: siteId ? { id: siteId } : {}, include: [Department] });
   const results = [];
   for (const site of sites) {
     const required = site.Departments.length;
@@ -203,13 +235,16 @@ async function siteRotationCompliance(blockId) {
   return results;
 }
 
-/** 12. Critical Unit Coverage = % of blocks where NICU/ICU/EM/Research depts have >=1 assignment */
-async function criticalUnitCoverage() {
+/** 12. Critical Unit Coverage = % of blocks where NICU/ICU/EM/Research depts have >=1 assignment
+ * siteId (optional) restricts to one hospital's critical-unit slots. */
+async function criticalUnitCoverage(siteId) {
   const criticalDepts = await Department.findAll({ where: { is_critical_unit: true } });
   const blocks = await Block.findAll();
   const results = [];
   for (const dept of criticalDepts) {
-    const siteDepts = await SiteDepartment.findAll({ where: { department_id: dept.id } });
+    const sdWhere = { department_id: dept.id };
+    if (siteId) sdWhere.site_id = siteId;
+    const siteDepts = await SiteDepartment.findAll({ where: sdWhere });
     const sdIds = siteDepts.map((sd) => sd.id);
     let coveredBlocks = 0;
     for (const block of blocks) {

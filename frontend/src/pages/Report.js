@@ -9,9 +9,13 @@ import './dashboards/ChartSetup';
  * "Generate Report" view, available to every role. Content is populated based
  * on the logged-in user's level, mirroring the User-Level KPI Dashboard table
  * from the project spec:
- *   Hospital Administrator -> Rotation Coverage Rate, Site Utilization,
+ *   Admin / Program Manager -> Rotation Coverage Rate, Site Utilization,
  *     Department Capacity Utilization, Curriculum Compliance,
- *     Notification Success Rate, Audit Log Completeness
+ *     Notification Success Rate, Audit Log Completeness (hospital-wide)
+ *   Hospital Administrator -> the same KPI set as Admin, but scoped to just
+ *     that user's own hospital (their home_site_id) -- see
+ *     HospitalAdminReport, and the backend's kpiController.overview which
+ *     applies the site filter automatically for this role.
  *   Master Scheduler -> Schedule Publication Timeliness, Conflict-Free
  *     Scheduling, Rotation Block Completion, Change Request Rate,
  *     Approval Turnaround Time
@@ -117,6 +121,8 @@ export default function Report() {
         </p>
 
         {user?.role === 'admin' && <AdminReport data={overview} />}
+        {user?.role === 'program_manager' && <AdminReport data={overview} />}
+        {user?.role === 'hospital_admin' && <HospitalAdminReport data={overview} />}
         {user?.role === 'scheduler' && <SchedulerReport data={overview} />}
         {user?.role === 'dept_head' && <DeptHeadReport data={overview} />}
         {user?.role === 'physician' && <PhysicianReport data={physicianKpis} />}
@@ -127,7 +133,9 @@ export default function Report() {
 
 function roleReportTitle(role) {
   switch (role) {
-    case 'admin': return 'Hospital Administrator Report';
+    case 'admin': return 'Admin Report';
+    case 'program_manager': return 'Program Manager Report';
+    case 'hospital_admin': return 'Hospital Administrator Report';
     case 'scheduler': return 'Master Scheduler Report';
     case 'dept_head': return 'Department Head Report';
     case 'physician': return 'Physician Report';
@@ -265,7 +273,7 @@ function AdminReport({ data }) {
 
   return (
     <div>
-      <h5 className="report-section-title">Overall Hospital Performance &amp; Compliance</h5>
+      <h5 className="report-section-title">Overall Hospital Network Performance &amp; Compliance</h5>
 
       <h6 className="mt-2 mb-2">Key Compliance &amp; Coverage Metrics</h6>
       <ChartBox height={200}><Bar data={metricsBarData} options={pctHorizontalOptions} /></ChartBox>
@@ -314,6 +322,95 @@ function AdminReport({ data }) {
         subtext="100% = perfectly even distribution across departments" />
       <Row label="Conflict-Free Scheduling" value={`${data.conflictFreeScheduling.conflicts} conflicts`}
         subtext="overlapping assignments for the same physician" />
+    </div>
+  );
+}
+
+/** Hospital Administrator: same shape as AdminReport, but every figure in
+ * `data` has already been filtered to this user's own hospital by the
+ * backend (kpiController.overview scopes by req.user.siteId for this role).
+ * Omits KPIs that don't have a clean single-hospital reading (Notification
+ * Success Rate, Audit Log Completeness, network-wide Department Allocation
+ * Balance) -- see AdminReport for the full hospital-network version. */
+function HospitalAdminReport({ data }) {
+  const metricsBarData = {
+    labels: ['Rotation Coverage', 'Curriculum Compliance'],
+    datasets: [{
+      label: '%',
+      data: [data.rotationCoverageRate.ratePct, data.curriculumCompliance.pct],
+      backgroundColor: ['#4A90D9', '#7FB37F'],
+    }],
+  };
+
+  const capacityData = {
+    labels: data.departmentCapacityUtilization.map((r) => r.department),
+    datasets: [{ label: '% filled', data: data.departmentCapacityUtilization.map((r) => r.pct), backgroundColor: '#4A90D9' }],
+  };
+
+  const totalAssignments = data.rotationBlockCompletion.total;
+  const conflictData = {
+    labels: ['Conflicting', 'Clean'],
+    datasets: [{
+      data: [data.conflictFreeScheduling.conflicts, Math.max(totalAssignments - data.conflictFreeScheduling.conflicts, 0)],
+      backgroundColor: ['#D95F4A', '#7FB37F'],
+    }],
+  };
+
+  const criticalUnitData = {
+    labels: data.criticalUnitCoverage.map((c) => c.department),
+    datasets: [{ label: '% of blocks covered', data: data.criticalUnitCoverage.map((c) => c.pct), backgroundColor: '#D95F4A' }],
+  };
+  const siteComplianceData = {
+    labels: data.siteRotationCompliance.map((c) => c.site),
+    datasets: [{ label: '% compliant', data: data.siteRotationCompliance.map((c) => c.pct), backgroundColor: '#7FB37F' }],
+  };
+
+  const totalSiteRotations = Object.values(data.siteUtilization).reduce((a, b) => a + b, 0);
+
+  return (
+    <div>
+      <h5 className="report-section-title">Hospital Performance &amp; Compliance (this hospital only)</h5>
+
+      <h6 className="mt-2 mb-2">Key Compliance &amp; Coverage Metrics</h6>
+      <ChartBox height={200}><Bar data={metricsBarData} options={pctHorizontalOptions} /></ChartBox>
+
+      <div className="row mt-3">
+        <div className="col-md-6">
+          <h6 className="mb-2">Department Capacity Utilization</h6>
+          <ChartBox><Bar data={capacityData} options={pctVerticalOptions} /></ChartBox>
+        </div>
+        <div className="col-md-6">
+          <h6 className="mb-2">Conflict-Free Scheduling</h6>
+          <ChartBox><Doughnut data={conflictData} options={doughnutOptions} /></ChartBox>
+        </div>
+      </div>
+
+      <div className="row mt-3">
+        <div className="col-md-6">
+          <h6 className="mb-2">Critical Unit Coverage (NICU / ICU / Emergency / Research)</h6>
+          <ChartBox><Bar data={criticalUnitData} options={pctVerticalOptions} /></ChartBox>
+        </div>
+        <div className="col-md-6">
+          <h6 className="mb-2">Site Rotation Compliance</h6>
+          <ChartBox><Bar data={siteComplianceData} options={pctVerticalOptions} /></ChartBox>
+        </div>
+      </div>
+
+      <h6 className="mt-4 mb-2">Detailed Figures</h6>
+      <Row label="Rotation Coverage Rate" value={`${data.rotationCoverageRate.ratePct}%`}
+        subtext={`${data.rotationCoverageRate.assignedPhysicians}/${data.rotationCoverageRate.totalPhysicians} physicians assigned`} />
+      <Row label="Rotations at this hospital" value={totalSiteRotations} />
+      <Row label="Department Capacity Utilization (avg)" value={`${avgPct(data.departmentCapacityUtilization)}%`}
+        subtext={`${data.departmentCapacityUtilization.length} department slots tracked`} />
+      <Row label="Curriculum Compliance" value={`${data.curriculumCompliance.pct}%`}
+        subtext={`${data.curriculumCompliance.completed}/${data.curriculumCompliance.expected} block-assignments completed`} />
+      <Row label="Conflict-Free Scheduling" value={`${data.conflictFreeScheduling.conflicts} conflicts`}
+        subtext="overlapping assignments for the same physician" />
+      <p className="text-muted small mt-2">
+        Figures above are restricted to your hospital. Notification Success Rate and Audit Log
+        Completeness are hospital-network-wide concepts and aren't shown here -- see the Admin /
+        Program Manager report for the full network view.
+      </p>
     </div>
   );
 }
