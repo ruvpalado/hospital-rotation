@@ -27,7 +27,7 @@ const DEPARTMENTS = [
   { code: 'FM, HRP & US', name: 'Fetal Medicine, High Risk Pregnancy and Ultrasound (MFM)' },
   { code: 'FM & HRP', name: 'Fetal Medicine and High Risk Pregnancy' },
   { code: 'REI, INF & MIS', name: 'Reproductive Endocrinology, Infertility/IVF and Minimal Invasive Surgery' },
-  { code: 'CLINIC', name: 'General OBGYNE Clinic' },
+  { code: 'CLINIC', name: 'GYNE Clinic' },
   { code: 'PNW', name: 'Postnatal Ward' },
   { code: 'ANW', name: 'Antenatal Ward' },
   { code: 'US', name: 'General Obstetric and Gynecology Ultrasound' },
