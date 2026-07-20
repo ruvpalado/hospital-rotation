@@ -87,7 +87,6 @@ export default function Register() {
               <option value="">-- select role --</option>
               <option value="physician">Physician</option>
               <option value="dept_head">Department Head</option>
-              <option value="scheduler">Master Scheduler</option>
               <option value="admin">Admin</option>
               <option value="program_manager">Program Manager</option>
               <option value="hospital_admin">Hospital Administrator</option>

@@ -7,4 +7,8 @@ const roleController = require('../controllers/roleController');
 // program_manager / hospital_admin roles on a live database.
 router.post('/sync', authenticate, requireRole('admin'), roleController.syncRoles);
 
+// Admin-only maintenance action: fully remove the 'scheduler' role, its
+// accounts, and narrow the roles ENUM so it can't be selected again.
+router.post('/remove-scheduler', authenticate, requireRole('admin'), roleController.removeSchedulerRole);
+
 module.exports = router;

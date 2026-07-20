@@ -15,9 +15,11 @@ async function run() {
   await sequelize.sync({ force: true });
 
   // ---------- Roles ----------
+  // 'scheduler' (Master Scheduler) was retired -- the 'admin' role now holds
+  // every scheduler permission too (see backend/routes/schedules.js), so
+  // there's no separate scheduler role/account in a fresh seed.
   const roleDefs = [
     { key: 'admin', label: 'Admin' },
-    { key: 'scheduler', label: 'Master Scheduler' },
     { key: 'dept_head', label: 'Department Head' },
     { key: 'physician', label: 'Physician' },
     { key: 'program_manager', label: 'Program Manager' },
@@ -71,15 +73,6 @@ async function run() {
     password_hash, role_id: roles.admin.id, language_pref: 'en',
   });
 
-  const scheduler1 = await User.create({
-    full_name: 'Yusuf Al-Rawahi', email: 'scheduler1@obgyn-rotation.local', phone: '+96890000002',
-    password_hash, role_id: roles.scheduler.id, language_pref: 'en',
-  });
-  const scheduler2 = await User.create({
-    full_name: 'Maha Al-Habsi', email: 'scheduler2@obgyn-rotation.local', phone: '+96890000003',
-    password_hash, role_id: roles.scheduler.id, language_pref: 'ar',
-  });
-
   // Department heads for a representative subset of departments
   const deptHeadCodes = ['GOBG, HRP & MFM', 'GY-ONC', 'URGY', 'MM & HRP', 'REI, INF & MIS', 'DS'];
   const deptHeads = {};
@@ -117,7 +110,7 @@ async function run() {
     });
     physicians.push({ user: phy, homeSiteCode: siteCode, homeDeptCode: deptCode });
   }
-  console.log('Users created:', physicians.length + deptHeadCodes.length + 3);
+  console.log('Users created:', physicians.length + deptHeadCodes.length + 1);
 
   // ---------- Blocks (1-13), Sept 2026 - Aug 2027 curriculum cycle ----------
   // Exact dates from the approved rotation schedule: Block 1 starts Sept 1,
@@ -144,8 +137,8 @@ async function run() {
 
   // ---------- Rotation assignments / weeks / change requests ----------
   // Intentionally NOT seeded. Real rotation schedules should be created by
-  // the Master Scheduler through the app (Schedules -> + Add Schedule) once
-  // the reference data above (roles, sites, departments, users, curriculum
+  // an Admin through the app (Schedules -> + Add Schedule) once the
+  // reference data above (roles, sites, departments, users, curriculum
   // blocks) is in place. This keeps the Schedules page free of fake demo
   // assignments in every environment that runs this seed script.
 
@@ -169,7 +162,6 @@ async function run() {
   console.log('\nSeed complete.');
   console.log(`Demo login (all roles use password: ${DEFAULT_PASSWORD}):`);
   console.log(`  Admin:       ${admin.email}`);
-  console.log(`  Scheduler:   ${scheduler1.email}`);
   console.log(`  Dept Head:   depthead.<id>@obgyn-rotation.local (see DB)`);
   console.log(`  Physician:   ${physicians[0].user.email}`);
 
