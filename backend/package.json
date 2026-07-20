@@ -8,6 +8,7 @@
     "start": "node server.js",
     "seed": "node seed/seed.js",
     "clear-schedules": "node scripts/clear-schedules.js",
+    "clear-all-user-data": "node scripts/clear-all-user-data.js",
     "update-block-dates": "node scripts/update-block-dates.js"
   },
   "dependencies": {
