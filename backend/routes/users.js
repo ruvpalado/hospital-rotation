@@ -16,4 +16,8 @@ router.post('/:id/reactivate', authenticate, requireRole('admin', 'scheduler'), 
 // exactly one account per role.
 router.post('/cleanup-duplicates', authenticate, requireRole('admin'), userController.cleanupDuplicates);
 
+// Admin-only maintenance action: wipe every user account and reprovision a
+// merged Master Scheduler/Admin account plus a developer account.
+router.post('/reset-all', authenticate, requireRole('admin'), userController.resetAllUsers);
+
 module.exports = router;

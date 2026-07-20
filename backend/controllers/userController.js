@@ -1,5 +1,6 @@
+const bcrypt = require('bcryptjs');
 const {
-  User, Role, Site, Department, AuditLog, Notification, RotationAssignment, ChangeRequest,
+  User, Role, Site, Department, AuditLog, Notification, RotationAssignment, RotationWeek, ChangeRequest,
 } = require('../models');
 
 /**
@@ -138,6 +139,75 @@ exports.cleanupDuplicates = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to clean up duplicate users', details: err.message });
+  }
+};
+
+/**
+ * One-time / repeatable maintenance action: wipes every user account (and
+ * everything that references a user -- notifications, change requests,
+ * rotation weeks/assignments, and audit-log attribution), then provisions
+ * exactly two fresh accounts:
+ *   1. A merged "Master Scheduler / Admin" account under the 'admin' role.
+ *      Since the scheduler-exclusive actions (create schedule, edit week
+ *      status) already accept 'admin' too (see routes/schedules.js), this
+ *      one login can do everything both Hospital Administrator and Master
+ *      Scheduler could do separately.
+ *   2. A developer account with the same 'admin' role, for checking the live
+ *      app / dashboards when an update is needed, without touching the
+ *      primary login.
+ * Reference data (roles, sites, departments, curriculum blocks) is left
+ * completely untouched -- only user accounts and user-owned records are
+ * removed.
+ */
+exports.resetAllUsers = async (req, res) => {
+  try {
+    const adminRole = await Role.findOne({ where: { key: 'admin' } });
+    if (!adminRole) return res.status(500).json({ error: "'admin' role not found -- run the seed script first" });
+
+    // Order matters: children before parents, to satisfy foreign keys.
+    await RotationWeek.destroy({ where: {} });
+    await ChangeRequest.destroy({ where: {} });
+    await RotationAssignment.destroy({ where: {} });
+    await Notification.destroy({ where: {} });
+    await AuditLog.update({ user_id: null }, { where: {} });
+    await User.destroy({ where: {} });
+
+    const password_hash = await bcrypt.hash('Passw0rd!', 10);
+    const mainAccount = await User.create({
+      full_name: 'Master Scheduler / Admin',
+      email: 'admin@obgyn-rotation.local',
+      phone: '+96890000001',
+      password_hash,
+      role_id: adminRole.id,
+      language_pref: 'en',
+    });
+
+    const devPasswordHash = await bcrypt.hash('DevAccess#2026!', 10);
+    const devAccount = await User.create({
+      full_name: 'Ruel Palado (Developer)',
+      email: 'ruvpalado@gmail.com',
+      password_hash: devPasswordHash,
+      role_id: adminRole.id,
+      language_pref: 'en',
+    });
+
+    await AuditLog.create({
+      user_id: mainAccount.id,
+      action: 'delete',
+      entity_type: 'user_full_reset',
+      details: { note: 'All user accounts wiped and reprovisioned via /api/users/reset-all' },
+    });
+
+    res.json({
+      message: 'All users deleted. Two fresh accounts provisioned.',
+      accounts: [
+        { purpose: 'main (Master Scheduler + Admin merged)', email: mainAccount.email, password: 'Passw0rd!', role: 'admin' },
+        { purpose: 'developer', email: devAccount.email, password: 'DevAccess#2026!', role: 'admin' },
+      ],
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to reset users', details: err.message });
   }
 };
 
