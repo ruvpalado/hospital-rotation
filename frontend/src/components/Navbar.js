@@ -36,7 +36,7 @@ export default function Navbar() {
           <li className="nav-item"><Link className="nav-link" to="/report">Generate Report</Link></li>
         </ul>
         <div className="d-flex align-items-center gap-2">
-          <span className="text-light small">{user.fullName} ({user.roleLabel})</span>
+          <span className="text-light small">{user.fullName}</span>
           <button className="btn btn-outline-light btn-sm" onClick={toggleLanguage}>{t('language')}</button>
           <button className="btn btn-outline-light btn-sm" onClick={logout}>{t('logout')}</button>
         </div>
