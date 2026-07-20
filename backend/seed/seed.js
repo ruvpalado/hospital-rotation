@@ -74,7 +74,7 @@ async function run() {
   });
 
   // Department heads for a representative subset of departments
-  const deptHeadCodes = ['GOBG, HRP & MFM', 'GY-ONC', 'URGY', 'MM & HRP', 'REI, INF & MIS', 'DS'];
+  const deptHeadCodes = ['GOBG & HRP', 'GY-ONC', 'URGY', 'MM & HRP', 'REI, INF & MIS', 'DS'];
   const deptHeads = {};
   for (const code of deptHeadCodes) {
     const dept = departments[code];

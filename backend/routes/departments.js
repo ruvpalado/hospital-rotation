@@ -11,4 +11,9 @@ router.get('/', siteController.listDepartments);
 // { "code": "CLINIC", "name": "GYNE Clinic" }.
 router.patch('/rename', authenticate, requireRole('admin'), siteController.renameDepartment);
 
+// Admin-only maintenance action: rebuild Department + SiteDepartment tables
+// on the live database to match backend/seed/data.js (the authoritative
+// Site and Department guideline document), without touching users/sites.
+router.post('/sync', authenticate, requireRole('admin'), siteController.syncDepartments);
+
 module.exports = router;

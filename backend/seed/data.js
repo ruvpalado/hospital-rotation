@@ -1,5 +1,9 @@
-// Static reference data extracted from the OBGYN Master Rotation project spec:
-// site list, department codes, and site->department mappings.
+// Static reference data extracted from the OBGYN Master Rotation project spec.
+//
+// Site list and site->department mapping were rebuilt from the authoritative
+// "Site and Department" guideline document (uploaded 2026-07-20), which
+// supersedes the earlier hand-assembled mapping. Department codes/names below
+// are deduplicated across all 9 sites as listed in that document.
 
 const SITES = [
   { name: 'Sultan Qaboos University Hospital', short_code: 'SQUH' },
@@ -13,45 +17,50 @@ const SITES = [
   { name: 'National Genetics Center', short_code: 'NGC' },
 ];
 
-// code -> full name (deduplicated from the uploaded department/code table)
+// code -> full name, deduplicated from the authoritative Site-Department guideline doc.
+// critical: true marks a unit tracked by the Critical Unit Coverage KPI.
 const DEPARTMENTS = [
-  { code: 'GOBG, HRP & MFM', name: 'General Obstetrics & Gynecology / High Risk Pregnancy / Maternal Fetal Medicine' },
-  { code: 'RE & MIS', name: 'Reproductive Endocrinology and Minimal Invasive Surgery' },
-  { code: 'GOBG & HRP', name: 'General Obstetrics and Gynecology and High Risk Pregnancy' },
+  { code: 'GOBG & HRP', name: 'General OBGYN & High Risk Pregnancy' },
+  { code: 'MFM & HRP', name: 'Maternal Fetal Medicine & High Risk Pregnancy' },
+  { code: 'RE & INF', name: 'Reproductive Endocrinology & Infertility' },
+  { code: 'RE & MIS', name: 'Reproductive Endocrinology & Minimal Invasive Surgery' },
   { code: 'URGY', name: 'Urogynecology' },
-  { code: 'RE & INF/GOBG', name: 'Reproductive Endocrinology & Infertility / General Obstetrics and Gynecology' },
-  { code: 'MM & HRP', name: 'Maternal Medicine & High Risk Pregnancy (MFM)' },
-  { code: 'END, INF & RM', name: 'Endoscopy, Infertility & Reproductive Medicine (REI/MIS)' },
-  { code: 'GY-ONC', name: 'Gyne-Oncology' },
-  { code: 'DM & HRP', name: 'Diabetic & High Risk Pregnancy' },
-  { code: 'FM, HRP & US', name: 'Fetal Medicine, High Risk Pregnancy and Ultrasound (MFM)' },
-  { code: 'FM & HRP', name: 'Fetal Medicine and High Risk Pregnancy' },
-  { code: 'REI, INF & MIS', name: 'Reproductive Endocrinology, Infertility/IVF and Minimal Invasive Surgery' },
   { code: 'CLINIC', name: 'GYNE Clinic' },
+  { code: 'GENETICS', name: 'Genetics' },
+  { code: 'RESEARCH', name: 'Research Block', critical: true },
+  { code: 'ICU', name: 'Intensive Care Unit', critical: true },
+  { code: 'NICU', name: 'Neonatal Intensive Care Unit', critical: true },
+  { code: 'MM & HRP', name: 'Maternal Medicine & High Risk Pregnancy' },
+  { code: 'GY-ONC', name: 'Gyne-Oncology' },
+  { code: 'DM & HRP', name: 'Diabetes Mellitus & High Risk Pregnancy' },
+  { code: 'FM & HRP', name: 'Fetal Medicine & High Risk Pregnancy' },
   { code: 'PNW', name: 'Postnatal Ward' },
   { code: 'ANW', name: 'Antenatal Ward' },
-  { code: 'US', name: 'General Obstetric and Gynecology Ultrasound' },
+  { code: 'US', name: 'Ultrasound' },
   { code: 'DS', name: 'Delivery Suite' },
   { code: 'OT', name: 'Operating Theatre' },
   { code: 'EM', name: 'Emergency Medicine', critical: true },
   { code: 'BS', name: 'Birth Spacing' },
-  // Added for Critical Unit Coverage KPI (NICU/ICU/Research called out explicitly in spec 11):
-  { code: 'NICU', name: 'Neonatal Intensive Care Unit', critical: true },
-  { code: 'ICU', name: 'Intensive Care Unit', critical: true },
-  { code: 'RESEARCH', name: 'Gyne-Oncology Research', critical: true },
+  { code: 'ASSESSMENT', name: 'Assessment' },
+  { code: 'GYN WARD', name: 'Gyn Ward' },
+  { code: 'GYNE', name: 'Gyne' },
+  { code: 'ADMISSION', name: 'Admission' },
+  { code: 'REI, INF & MIS', name: 'Reproductive Infertility and Minimally Invasive Surgery' },
+  { code: 'ANC', name: 'Antenatal Clinic' },
 ];
 
 // site short_code -> array of department codes offered at that site
+// (per the authoritative Site-Department guideline document).
 const SITE_DEPARTMENTS = {
-  SQUH: ['GOBG, HRP & MFM', 'RE & MIS', 'GY-ONC', 'URGY', 'FM, HRP & US', 'NICU', 'ICU', 'DS', 'OT', 'ANW', 'PNW', 'CLINIC'],
-  RH: ['GOBG, HRP & MFM', 'RE & MIS', 'GY-ONC', 'URGY', 'FM, HRP & US', 'NICU', 'ICU', 'DS', 'OT', 'EM'],
-  KH: ['MM & HRP', 'ANW', 'PNW', 'DS', 'CLINIC', 'EM'],
-  NH: ['FM & HRP', 'ANW', 'US', 'CLINIC'],
-  SOHAR: ['REI, INF & MIS', 'END, INF & RM', 'CLINIC'],
-  MCMSS: ['MM & HRP', 'CLINIC', 'BS'],
-  LHC: ['MM & HRP', 'BS', 'CLINIC'],
-  SQCCCRC: ['GY-ONC', 'RESEARCH'],
-  NGC: ['RE & INF/GOBG', 'DM & HRP'],
+  SQUH: ['PNW', 'ANW', 'US', 'DS', 'OT', 'EM', 'GOBG & HRP', 'MFM & HRP', 'RE & INF', 'RE & MIS', 'URGY', 'CLINIC', 'GENETICS', 'RESEARCH', 'ICU', 'NICU'],
+  RH: ['CLINIC', 'MM & HRP', 'GY-ONC', 'DM & HRP', 'FM & HRP', 'PNW', 'ANW', 'DS', 'US', 'ASSESSMENT', 'GYN WARD', 'OT', 'RESEARCH', 'EM', 'ICU', 'NICU', 'GYNE'],
+  KH: ['ADMISSION', 'ANW', 'PNW', 'GYN WARD', 'MM & HRP', 'REI, INF & MIS', 'FM & HRP', 'RESEARCH', 'EM', 'US', 'ICU'],
+  NH: ['DS'],
+  SOHAR: ['GYNE'],
+  MCMSS: ['GYNE', 'DS', 'ANC', 'RESEARCH'],
+  LHC: ['BS'],
+  SQCCCRC: ['GY-ONC'],
+  NGC: ['GENETICS'],
 };
 
 module.exports = { SITES, DEPARTMENTS, SITE_DEPARTMENTS };
