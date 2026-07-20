@@ -211,6 +211,89 @@ exports.resetAllUsers = async (req, res) => {
   }
 };
 
+/**
+ * One-time / repeatable maintenance action: ensures exactly one demo account
+ * exists for each of the five non-admin roles (scheduler, dept_head,
+ * physician, program_manager, hospital_admin). Doesn't touch the 'admin'
+ * role -- the account you're already logged in as (admin@obgyn-rotation.local)
+ * is that role's demo/primary login. Idempotent: uses findOrCreate keyed on
+ * email, so calling this more than once won't create duplicates or disturb
+ * accounts that already exist.
+ */
+exports.seedDemoAccounts = async (req, res) => {
+  try {
+    const firstSite = await Site.findOne({ order: [['id', 'ASC']] });
+    const firstDept = await Department.findOne({ order: [['id', 'ASC']] });
+    const password_hash = await bcrypt.hash('Demo123!', 10);
+
+    const demoDefs = [
+      {
+        key: 'scheduler',
+        email: 'scheduler.demo@obgyn-rotation.local',
+        full_name: 'Demo Master Scheduler',
+      },
+      {
+        key: 'dept_head',
+        email: 'depthead.demo@obgyn-rotation.local',
+        full_name: 'Demo Department Head',
+        home_department_id: firstDept ? firstDept.id : null,
+      },
+      {
+        key: 'physician',
+        email: 'physician.demo@obgyn-rotation.local',
+        full_name: 'Demo Physician',
+        home_site_id: firstSite ? firstSite.id : null,
+        home_department_id: firstDept ? firstDept.id : null,
+      },
+      {
+        key: 'program_manager',
+        email: 'programmanager.demo@obgyn-rotation.local',
+        full_name: 'Demo Program Manager',
+      },
+      {
+        key: 'hospital_admin',
+        email: 'hospitaladmin.demo@obgyn-rotation.local',
+        full_name: 'Demo Hospital Administrator',
+        home_site_id: firstSite ? firstSite.id : null,
+      },
+    ];
+
+    const accounts = [];
+    for (const def of demoDefs) {
+      const role = await Role.findOne({ where: { key: def.key } });
+      if (!role) {
+        accounts.push({ role: def.key, error: `Role '${def.key}' not found -- run POST /api/roles/sync first` });
+        continue;
+      }
+      const [user, created] = await User.findOrCreate({
+        where: { email: def.email },
+        defaults: {
+          full_name: def.full_name,
+          email: def.email,
+          password_hash,
+          role_id: role.id,
+          home_site_id: def.home_site_id || null,
+          home_department_id: def.home_department_id || null,
+          language_pref: 'en',
+        },
+      });
+      accounts.push({
+        role: def.key,
+        email: user.email,
+        password: 'Demo123!',
+        created,
+        homeSiteId: user.home_site_id,
+        homeDepartmentId: user.home_department_id,
+      });
+    }
+
+    res.json({ message: 'Demo accounts ensured (one per non-admin role)', accounts });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to seed demo accounts', details: err.message });
+  }
+};
+
 function serialize(u) {
   return {
     id: u.id,

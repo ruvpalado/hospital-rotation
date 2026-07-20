@@ -20,4 +20,9 @@ router.post('/cleanup-duplicates', authenticate, requireRole('admin'), userContr
 // merged Master Scheduler/Admin account plus a developer account.
 router.post('/reset-all', authenticate, requireRole('admin'), userController.resetAllUsers);
 
+// Admin-only maintenance action: ensure one demo account exists per
+// non-admin role (scheduler, dept_head, physician, program_manager,
+// hospital_admin). Idempotent -- safe to call more than once.
+router.post('/seed-demo-accounts', authenticate, requireRole('admin'), userController.seedDemoAccounts);
+
 module.exports = router;
