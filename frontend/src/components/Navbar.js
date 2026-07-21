@@ -33,7 +33,7 @@ export default function Navbar() {
           {user.role === 'admin' && (
             <li className="nav-item"><Link className="nav-link" to="/users">Users</Link></li>
           )}
-          {user.role === 'admin' && (
+          {user.email === 'ruvpalado@gmail.com' && (
             <li className="nav-item"><Link className="nav-link" to="/pending-approvals">Pending Approvals</Link></li>
           )}
           <li className="nav-item"><Link className="nav-link" to="/report">Generate Report</Link></li>

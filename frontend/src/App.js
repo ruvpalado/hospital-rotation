@@ -52,7 +52,7 @@ export default function App() {
             <RoleBasedRoute allowedRoles={['admin']}><Layout><UserManagement /></Layout></RoleBasedRoute>
           } />
           <Route path="/pending-approvals" element={
-            <RoleBasedRoute allowedRoles={['admin']}><Layout><PendingApprovals /></Layout></RoleBasedRoute>
+            <RoleBasedRoute requireEmail="ruvpalado@gmail.com"><Layout><PendingApprovals /></Layout></RoleBasedRoute>
           } />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

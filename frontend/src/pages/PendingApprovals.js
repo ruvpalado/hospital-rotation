@@ -1,18 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
 const DEVELOPER_EMAIL = 'ruvpalado@gmail.com';
 
 /**
- * Account Creation Policy: lists every account awaiting approval. Any admin
- * can see this page, but the Approve/Reject buttons for an admin-role
- * request are disabled for everyone except the developer account
- * (ruvpalado@gmail.com) -- the backend enforces this too, this is just
- * matching UI so people aren't clicking a button that will 403.
+ * Account Creation Policy (temporarily tightened): approval rights are
+ * restricted to the developer account only -- for every pending request,
+ * regardless of requested role. The route itself (see App.js requireEmail
+ * and backend routes/users.js requireDeveloperEmail) already keeps anyone
+ * else from reaching this page at all, so there's no per-row gating needed
+ * here anymore; whoever's looking at this page is always ruvpalado@gmail.com.
  */
 export default function PendingApprovals() {
-  const { user } = useAuth();
   const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -27,10 +26,6 @@ export default function PendingApprovals() {
   };
 
   useEffect(() => { load(); }, []);
-
-  const isDeveloper = user?.email === DEVELOPER_EMAIL;
-
-  const canAct = (row) => row.role !== 'admin' || isDeveloper;
 
   const handleApprove = async (row) => {
     setActingOnId(row.id);
@@ -63,8 +58,8 @@ export default function PendingApprovals() {
     <div className="container-fluid py-4">
       <h4 className="mb-1">Pending Approvals</h4>
       <p className="text-muted small mb-3">
-        Non-admin requests can be approved by any admin. Admin-role requests can only be approved or
-        rejected by {DEVELOPER_EMAIL}, and are capped at 3 total admin accounts.
+        Approval rights are currently restricted to {DEVELOPER_EMAIL} for every pending request.
+        Admin-role requests are additionally capped at 3 total admin accounts.
       </p>
       {error && <div className="alert alert-danger py-2">{error}</div>}
       {loading ? (
@@ -92,26 +87,20 @@ export default function PendingApprovals() {
                 <td>{row.homeSite?.name || '-'}</td>
                 <td>{row.homeDepartment?.name || '-'}</td>
                 <td className="text-end">
-                  {!canAct(row) ? (
-                    <span className="text-muted small">Only {DEVELOPER_EMAIL} can act on this</span>
-                  ) : (
-                    <>
-                      <button
-                        className="btn btn-success btn-sm me-2"
-                        disabled={actingOnId === row.id}
-                        onClick={() => handleApprove(row)}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        className="btn btn-outline-danger btn-sm"
-                        disabled={actingOnId === row.id}
-                        onClick={() => handleReject(row)}
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
+                  <button
+                    className="btn btn-success btn-sm me-2"
+                    disabled={actingOnId === row.id}
+                    onClick={() => handleApprove(row)}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    className="btn btn-outline-danger btn-sm"
+                    disabled={actingOnId === row.id}
+                    onClick={() => handleReject(row)}
+                  >
+                    Reject
+                  </button>
                 </td>
               </tr>
             ))}
