@@ -3,10 +3,10 @@ import api from '../api/axios';
 
 /**
  * Form for creating a new RotationAssignment, structured directly off the
- * backend's database shape: physicianId, siteDepartmentId, blockId,
- * startDate, endDate (see backend/models/RotationAssignment.js). Submitting
- * calls POST /api/schedules, which also auto-creates the 4 RotationWeek rows
- * for the assignment's block.
+ * backend's database shape: physicianId, physicianName, siteDepartmentId,
+ * blockId, startDate, endDate (see backend/models/RotationAssignment.js).
+ * Submitting calls POST /api/schedules, which also auto-creates the 4
+ * RotationWeek rows for the assignment's block.
  *
  * Site and Department are two separate dropdowns (not one combined
  * "Site / Department" picker): choosing a Site filters the Department
@@ -52,14 +52,14 @@ export default function AddScheduleModal({ onClose, onCreated }) {
     ? siteDepartments.filter((sd) => sd.Site && String(sd.Site.id) === String(siteId))
     : [];
 
-  // Physician is a type-to-search text field (native browser autocomplete via
-  // <datalist>, filtering options by matching letters as you type) rather
-  // than a plain dropdown -- but it still must resolve to a real registered
-  // physician account, since rotation assignments, KPIs, and reminder
-  // notifications are all tied to a physician's User id. Each suggestion's
-  // label is "Full Name (email)" so same-named physicians stay distinguishable;
-  // typing the exact label resolves physicianId, anything else leaves it
-  // unresolved and blocks submit with a clear error.
+  // Physician accepts any manually typed name -- it's not restricted to a
+  // predefined list. Suggestions still pop up as you type (native browser
+  // autocomplete via <datalist>, filtered by matching letters) for the
+  // convenience of picking an already-registered physician, which links the
+  // real account so that physician's own dashboard, per-physician KPIs, and
+  // reminder notifications all work. If what's typed doesn't match a
+  // suggestion, the rotation is still created under that typed name -- it
+  // just won't be tied to an account for those account-linked features.
   const physicianLabel = (p) => `${p.fullName} (${p.email})`;
 
   const handlePhysicianInputChange = (e) => {
@@ -90,18 +90,15 @@ export default function AddScheduleModal({ onClose, onCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!physicianInput || !siteDepartmentId || !blockId || !startDate || !endDate) {
+    if (!physicianInput.trim() || !siteDepartmentId || !blockId || !startDate || !endDate) {
       setError('All fields are required.');
-      return;
-    }
-    if (!physicianId) {
-      setError('Please choose a physician from the suggestions -- typed names must match a registered physician.');
       return;
     }
     setSubmitting(true);
     try {
       await api.post('/schedules', {
-        physicianId: Number(physicianId),
+        physicianId: physicianId ? Number(physicianId) : null,
+        physicianName: physicianInput.trim(),
         siteDepartmentId: Number(siteDepartmentId),
         blockId: Number(blockId),
         startDate,
@@ -144,7 +141,10 @@ export default function AddScheduleModal({ onClose, onCreated }) {
                   ))}
                 </datalist>
                 {physicianInput && !physicianId && (
-                  <div className="form-text text-danger">No registered physician matches this exactly -- pick one of the suggestions.</div>
+                  <div className="form-text">
+                    Not a registered physician account -- this rotation will be recorded under this name only
+                    (won't appear on a physician login, per-physician KPIs, or trigger reminder notifications).
+                  </div>
                 )}
               </div>
 

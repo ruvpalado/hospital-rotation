@@ -75,7 +75,10 @@ async function rotationCoverageRate(blockId, siteId) {
     await getAssignmentsWithWeeks(blockId ? { block_id: blockId } : {}),
     siteId
   );
-  const distinctPhysicians = new Set(assignments.map((a) => a.physician_id));
+  // Free-typed physician names with no matching account (physician_id null)
+  // aren't tied to a real physician, so they can't count toward "physicians
+  // covered" -- exclude them from the distinct count.
+  const distinctPhysicians = new Set(assignments.filter((a) => a.physician_id != null).map((a) => a.physician_id));
   const rate = physicianCountTotal > 0 ? (distinctPhysicians.size / physicianCountTotal) * 100 : 0;
   return { assignedPhysicians: distinctPhysicians.size, totalPhysicians: physicianCountTotal, ratePct: round(rate) };
 }
@@ -135,6 +138,10 @@ async function conflictCount(blockId, siteId) {
   );
   const byPhysician = {};
   assignments.forEach((a) => {
+    // Free-typed names with no matching account (physician_id null) can't be
+    // reliably grouped -- two different unlinked names would otherwise both
+    // land in a shared "null" bucket and look like the same person.
+    if (a.physician_id == null) return;
     byPhysician[a.physician_id] = byPhysician[a.physician_id] || [];
     byPhysician[a.physician_id].push(a);
   });

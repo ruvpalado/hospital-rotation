@@ -42,12 +42,27 @@ exports.getSchedule = async (req, res) => {
 
 exports.createSchedule = async (req, res) => {
   try {
-    const { physicianId, siteDepartmentId, blockId, startDate, endDate } = req.body;
+    const { physicianId, physicianName, siteDepartmentId, blockId, startDate, endDate } = req.body;
     const block = await Block.findByPk(blockId);
     if (!block) return res.status(400).json({ error: 'Invalid blockId' });
 
+    // Physician is a free-typed name field, not restricted to a predefined
+    // list. If it matches a registered physician (physicianId resolved
+    // client-side from the autocomplete suggestions), link the real account
+    // so that physician's dashboard, per-physician KPIs, and reminder
+    // notifications all work as before. Otherwise this assignment is
+    // display-only under the typed name, with no account attached.
+    let physician = null;
+    if (physicianId) {
+      physician = await User.findByPk(physicianId);
+      if (!physician) return res.status(400).json({ error: 'Invalid physicianId' });
+    }
+    const resolvedName = physician ? physician.full_name : (physicianName || '').trim();
+    if (!resolvedName) return res.status(400).json({ error: 'physicianName is required' });
+
     const assignment = await RotationAssignment.create({
-      physician_id: physicianId,
+      physician_id: physician ? physician.id : null,
+      physician_name: resolvedName,
       site_department_id: siteDepartmentId,
       block_id: blockId,
       start_date: startDate,
@@ -68,7 +83,8 @@ exports.createSchedule = async (req, res) => {
       });
     }
 
-    const physician = await User.findByPk(physicianId);
+    // physician is null for a free-typed name with no matching account --
+    // there's nothing to notify in that case.
     if (physician) await sendNotification({
       userId: physician.id, channel: 'system', title: 'New Rotation Assigned',
       message: `You have been assigned to Block ${block.block_number} starting ${startDate}.`,
@@ -159,7 +175,13 @@ exports.clearTestData = async (req, res) => {
 function serialize(a) {
   return {
     id: a.id,
-    physician: a.physician,
+    // a.physician is the linked User row when physician_id resolved to a real
+    // account; otherwise fall back to the free-typed physician_name so every
+    // consumer of this shape (ScheduleViewer, reports, KPI drill-downs) can
+    // keep reading physician?.full_name unchanged either way.
+    physician: a.physician
+      ? { id: a.physician.id, full_name: a.physician.full_name, email: a.physician.email, phone: a.physician.phone }
+      : { id: null, full_name: a.physician_name, email: null, phone: null },
     site: a.SiteDepartment.Site,
     department: a.SiteDepartment.Department,
     block: a.Block,

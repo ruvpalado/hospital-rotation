@@ -99,11 +99,36 @@ async function ensureApprovalStatusColumn() {
   }
 }
 
+// Same rationale/pattern as ensureApprovalStatusColumn above: the Physician
+// field on Add Rotation Schedule now accepts free-typed names, not just
+// registered physician accounts, so rotation_assignments.physician_id has to
+// become nullable and gains a physician_name column to hold the typed text
+// when there's no matching account. Existing rows get physician_name
+// backfilled from their linked physician's name so display code has one
+// consistent field to read regardless of when the row was created.
+async function ensurePhysicianNameColumn() {
+  const [existingColumns] = await sequelize.query('SHOW COLUMNS FROM rotation_assignments');
+  const hasPhysicianName = existingColumns.some((c) => c.Field === 'physician_name');
+  if (!hasPhysicianName) {
+    await sequelize.query('ALTER TABLE rotation_assignments ADD COLUMN physician_name VARCHAR(255) NULL');
+    await sequelize.query(
+      'UPDATE rotation_assignments ra JOIN users u ON u.id = ra.physician_id SET ra.physician_name = u.full_name WHERE ra.physician_name IS NULL'
+    );
+    console.log('[startup] Added rotation_assignments.physician_name column and backfilled existing rows from linked users');
+  }
+  const physicianIdColumn = existingColumns.find((c) => c.Field === 'physician_id');
+  if (physicianIdColumn && physicianIdColumn.Null === 'NO') {
+    await sequelize.query('ALTER TABLE rotation_assignments MODIFY COLUMN physician_id INT NULL');
+    console.log('[startup] Relaxed rotation_assignments.physician_id to nullable (free-typed physician names allowed)');
+  }
+}
+
 async function start() {
   try {
     await sequelize.authenticate();
     await sequelize.sync(); // for production use, migrate via sequelize-cli instead
     await ensureApprovalStatusColumn();
+    await ensurePhysicianNameColumn();
     app.listen(PORT, () => console.log(`Hospital Rotation API listening on port ${PORT}`));
   } catch (err) {
     console.error('Failed to start server:', err);
