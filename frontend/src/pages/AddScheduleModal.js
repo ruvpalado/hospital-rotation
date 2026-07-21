@@ -23,6 +23,7 @@ export default function AddScheduleModal({ onClose, onCreated }) {
   const [blocks, setBlocks] = useState([]);
 
   const [physicianId, setPhysicianId] = useState('');
+  const [physicianInput, setPhysicianInput] = useState('');
   const [siteId, setSiteId] = useState('');
   const [siteDepartmentId, setSiteDepartmentId] = useState('');
   const [blockId, setBlockId] = useState('');
@@ -51,6 +52,23 @@ export default function AddScheduleModal({ onClose, onCreated }) {
     ? siteDepartments.filter((sd) => sd.Site && String(sd.Site.id) === String(siteId))
     : [];
 
+  // Physician is a type-to-search text field (native browser autocomplete via
+  // <datalist>, filtering options by matching letters as you type) rather
+  // than a plain dropdown -- but it still must resolve to a real registered
+  // physician account, since rotation assignments, KPIs, and reminder
+  // notifications are all tied to a physician's User id. Each suggestion's
+  // label is "Full Name (email)" so same-named physicians stay distinguishable;
+  // typing the exact label resolves physicianId, anything else leaves it
+  // unresolved and blocks submit with a clear error.
+  const physicianLabel = (p) => `${p.fullName} (${p.email})`;
+
+  const handlePhysicianInputChange = (e) => {
+    const value = e.target.value;
+    setPhysicianInput(value);
+    const match = physicians.find((p) => physicianLabel(p) === value);
+    setPhysicianId(match ? match.id : '');
+  };
+
   const handleSiteChange = (e) => {
     setSiteId(e.target.value);
     // The previously selected department may not exist at the new site.
@@ -72,8 +90,12 @@ export default function AddScheduleModal({ onClose, onCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!physicianId || !siteDepartmentId || !blockId || !startDate || !endDate) {
+    if (!physicianInput || !siteDepartmentId || !blockId || !startDate || !endDate) {
       setError('All fields are required.');
+      return;
+    }
+    if (!physicianId) {
+      setError('Please choose a physician from the suggestions -- typed names must match a registered physician.');
       return;
     }
     setSubmitting(true);
@@ -107,12 +129,23 @@ export default function AddScheduleModal({ onClose, onCreated }) {
 
               <div className="mb-3">
                 <label className="form-label">Physician</label>
-                <select className="form-select" value={physicianId} onChange={(e) => setPhysicianId(e.target.value)} required>
-                  <option value="">-- select physician --</option>
+                <input
+                  className="form-control"
+                  list="physician-suggestions"
+                  value={physicianInput}
+                  onChange={handlePhysicianInputChange}
+                  placeholder="Start typing a name..."
+                  autoComplete="off"
+                  required
+                />
+                <datalist id="physician-suggestions">
                   {physicians.map((p) => (
-                    <option key={p.id} value={p.id}>{p.fullName} ({p.email})</option>
+                    <option key={p.id} value={physicianLabel(p)} />
                   ))}
-                </select>
+                </datalist>
+                {physicianInput && !physicianId && (
+                  <div className="form-text text-danger">No registered physician matches this exactly -- pick one of the suggestions.</div>
+                )}
               </div>
 
               <div className="mb-3">
