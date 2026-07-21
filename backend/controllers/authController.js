@@ -7,6 +7,7 @@ function signToken(user, roleKey) {
     {
       id: user.id,
       role: roleKey,
+      email: user.email,
       siteId: user.home_site_id,
       departmentId: user.home_department_id,
       fullName: user.full_name,
@@ -16,6 +17,13 @@ function signToken(user, roleKey) {
   );
 }
 
+/**
+ * Account Creation Policy: every self-registration starts out 'pending' --
+ * no token is issued, so the account can't log in until an admin approves
+ * it (admin-role requests require the developer account specifically; see
+ * userController.approveUser). This intentionally does NOT auto-login the
+ * new account the way it used to.
+ */
 exports.register = async (req, res) => {
   try {
     const { fullName, email, password, phone, roleKey, siteId, departmentId, languagePref } = req.body;
@@ -38,10 +46,16 @@ exports.register = async (req, res) => {
       home_site_id: siteId || null,
       home_department_id: departmentId || null,
       language_pref: languagePref || 'en',
+      approval_status: 'pending',
     });
 
-    const token = signToken(user, role.key);
-    return res.status(201).json({ token, user: publicUser(user, role) });
+    return res.status(201).json({
+      pendingApproval: true,
+      message: roleKey === 'admin'
+        ? 'Registration submitted. Admin accounts require approval from the developer account before you can log in.'
+        : 'Registration submitted. An admin needs to approve your account before you can log in.',
+      user: publicUser(user, role),
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Registration failed', details: err.message });
@@ -59,6 +73,13 @@ exports.login = async (req, res) => {
 
     if (!user.is_active) {
       return res.status(403).json({ error: 'This account has been deactivated. Contact your administrator.' });
+    }
+
+    if (user.approval_status === 'pending') {
+      return res.status(403).json({ error: 'This account is pending admin approval. Please wait for approval before logging in.' });
+    }
+    if (user.approval_status === 'rejected') {
+      return res.status(403).json({ error: 'This account registration was rejected. Contact an administrator.' });
     }
 
     const token = signToken(user, user.Role.key);

@@ -29,4 +29,16 @@ router.post('/seed-demo-accounts', authenticate, requireRole('admin'), userContr
 // (anything ending in .demo@obgyn-rotation.local). Idempotent.
 router.post('/remove-demo-accounts', authenticate, requireRole('admin'), userController.removeDemoAccounts);
 
+// Admin-only maintenance action: add the approval_status column to the live
+// users table (see Account Creation Policy). Idempotent.
+router.post('/sync-approval-column', authenticate, requireRole('admin'), userController.syncApprovalColumn);
+
+// Account Creation Policy: pending self-registrations awaiting approval.
+// Approving/rejecting an admin-role request is further gated inside the
+// controller to the developer account only; non-admin requests can be
+// actioned by any admin.
+router.get('/pending', authenticate, requireRole('admin'), userController.listPending);
+router.post('/:id/approve', authenticate, requireRole('admin'), withAudit('edit', 'user'), userController.approveUser);
+router.post('/:id/reject', authenticate, requireRole('admin'), withAudit('edit', 'user'), userController.rejectUser);
+
 module.exports = router;

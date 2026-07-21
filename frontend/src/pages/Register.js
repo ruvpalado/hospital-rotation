@@ -14,6 +14,7 @@ export default function Register() {
   const [sites, setSites] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [error, setError] = useState('');
+  const [pendingMessage, setPendingMessage] = useState('');
 
   useEffect(() => {
     api.get('/sites').catch(() => {}).then((res) => res && setSites(res.data));
@@ -47,8 +48,12 @@ export default function Register() {
     e.preventDefault();
     setError('');
     try {
-      await register(form);
-      navigate('/dashboard');
+      const res = await register(form);
+      // Account Creation Policy: registration no longer logs the account in
+      // immediately -- it's pending until an admin (or, for admin-role
+      // requests, the developer account) approves it. Show that message
+      // instead of redirecting into the app.
+      setPendingMessage(res.message || 'Registration submitted. Your account is pending admin approval.');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed');
     }
@@ -57,10 +62,25 @@ export default function Register() {
   const handleReturnToLogin = () => {
     setForm({ ...EMPTY_FORM });
     setError('');
+    setPendingMessage('');
     navigate('/login');
   };
 
   const isHospitalAdmin = form.roleKey === 'hospital_admin';
+
+  if (pendingMessage) {
+    return (
+      <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light py-4">
+        <div className="card shadow p-4 text-center" style={{ width: 460 }}>
+          <h4 className="mb-3">Registration Submitted</h4>
+          <div className="alert alert-info">{pendingMessage}</div>
+          <button type="button" className="btn btn-primary w-100" onClick={handleReturnToLogin}>
+            Return to Log In
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light py-4">

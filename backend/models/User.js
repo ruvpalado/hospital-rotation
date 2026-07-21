@@ -10,5 +10,12 @@ module.exports = (sequelize, DataTypes) => {
     home_department_id: { type: DataTypes.INTEGER, allowNull: true },
     language_pref: { type: DataTypes.ENUM('en', 'ar'), defaultValue: 'en' },
     is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
+    // Account Creation Policy: new self-registrations start 'pending' and
+    // can't log in until an admin approves them (see authController). This
+    // column defaults to 'approved' so every other path that creates a user
+    // (admin-maintenance endpoints, seed.js, the future direct-create-by-admin
+    // flow) doesn't need to be touched -- only authController.register
+    // explicitly sets 'pending'.
+    approval_status: { type: DataTypes.ENUM('pending', 'approved', 'rejected'), defaultValue: 'approved' },
   }, { tableName: 'users' });
 };

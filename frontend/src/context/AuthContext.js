@@ -37,12 +37,14 @@ export function AuthProvider({ children }) {
     return res.data.user;
   }, []);
 
+  // Account Creation Policy: registration no longer auto-logs the new
+  // account in -- it starts 'pending' and needs an admin (or, for admin-role
+  // requests, the developer account specifically) to approve it first. The
+  // backend returns a plain message rather than a token, so just hand that
+  // back to the caller (Register.js) to display.
   const register = useCallback(async (payload) => {
     const res = await api.post('/register', payload);
-    localStorage.setItem('token', res.data.token);
-    localStorage.setItem('user', JSON.stringify(res.data.user));
-    setUser(res.data.user);
-    return res.data.user;
+    return res.data;
   }, []);
 
   const logout = useCallback(() => {

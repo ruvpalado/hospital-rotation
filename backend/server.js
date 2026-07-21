@@ -80,10 +80,30 @@ cron.schedule('0 7 * * *', async () => {
 
 const PORT = process.env.PORT || 5000;
 
+// Runs before the server accepts any requests. Since sequelize.sync() (no
+// force/alter) only creates missing tables and never alters existing ones,
+// a new NOT NULL column with no default would otherwise require someone to
+// call an admin-only endpoint to add it -- but login itself would already be
+// broken (User queries reference the column) before anyone could log in to
+// call that endpoint. Running it here, ahead of app.listen(), avoids that
+// chicken-and-egg problem entirely. Idempotent -- checked via SHOW COLUMNS
+// every boot, cheap no-op once the column exists.
+async function ensureApprovalStatusColumn() {
+  const [existingColumns] = await sequelize.query('SHOW COLUMNS FROM users');
+  const alreadyExists = existingColumns.some((c) => c.Field === 'approval_status');
+  if (!alreadyExists) {
+    await sequelize.query(
+      "ALTER TABLE users ADD COLUMN approval_status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'approved'"
+    );
+    console.log('[startup] Added users.approval_status column (existing users grandfathered in as approved)');
+  }
+}
+
 async function start() {
   try {
     await sequelize.authenticate();
     await sequelize.sync(); // for production use, migrate via sequelize-cli instead
+    await ensureApprovalStatusColumn();
     app.listen(PORT, () => console.log(`Hospital Rotation API listening on port ${PORT}`));
   } catch (err) {
     console.error('Failed to start server:', err);

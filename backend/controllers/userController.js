@@ -1,7 +1,34 @@
 const bcrypt = require('bcryptjs');
 const {
-  User, Role, Site, Department, AuditLog, Notification, RotationAssignment, RotationWeek, ChangeRequest,
+  sequelize, User, Role, Site, Department, AuditLog, Notification, RotationAssignment, RotationWeek, ChangeRequest,
 } = require('../models');
+
+const MAX_ADMIN_ACCOUNTS = 3;
+const DEVELOPER_EMAIL = 'ruvpalado@gmail.com';
+
+/**
+ * One-time / repeatable maintenance action: adds the approval_status column
+ * to the live users table (MySQL ENUM columns need a raw ALTER TABLE the
+ * same way roles.key did -- see roleController.syncRoles). Defaults every
+ * existing row to 'approved', which is exactly the grandfathering behavior
+ * the Audit and Account Creation Policy calls for: current accounts keep
+ * working, only new self-registrations start out 'pending'. Idempotent.
+ */
+exports.syncApprovalColumn = async (req, res) => {
+  try {
+    const [existingColumns] = await sequelize.query('SHOW COLUMNS FROM users');
+    const alreadyExists = existingColumns.some((c) => c.Field === 'approval_status');
+    if (!alreadyExists) {
+      await sequelize.query(
+        "ALTER TABLE users ADD COLUMN approval_status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'approved'"
+      );
+    }
+    res.json({ message: alreadyExists ? 'approval_status column already present' : 'approval_status column added, existing users grandfathered in as approved' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to sync approval_status column', details: err.message });
+  }
+};
 
 /**
  * List users, optionally filtered by role (e.g. ?role=physician).
@@ -353,6 +380,86 @@ exports.removeDemoAccounts = async (req, res) => {
   }
 };
 
+/**
+ * List every account currently awaiting approval (approval_status='pending').
+ * Any admin can see the list -- the actual approve/reject action is what's
+ * gated by role vs. admin-role target below.
+ */
+exports.listPending = async (req, res) => {
+  const users = await User.findAll({
+    where: { approval_status: 'pending' },
+    include: [Role, { model: Site, as: 'homeSite' }, { model: Department, as: 'homeDepartment' }],
+    order: [['createdAt', 'ASC']],
+  });
+  res.json(users.map(serialize));
+};
+
+/**
+ * Account Creation Policy:
+ *   - Approving an admin-role request must come directly from the developer
+ *     account (ruvpalado@gmail.com), and is capped at MAX_ADMIN_ACCOUNTS (3)
+ *     total approved admins -- once at the cap, even the developer account
+ *     can't approve another admin request until one is removed.
+ *   - Approving a non-admin-role request can be done by any admin.
+ */
+exports.approveUser = async (req, res) => {
+  try {
+    const target = await User.findByPk(req.params.id, { include: [Role] });
+    if (!target) return res.status(404).json({ error: 'User not found' });
+    if (target.approval_status !== 'pending') {
+      return res.status(400).json({ error: `This account is already '${target.approval_status}', not pending.` });
+    }
+
+    if (target.Role.key === 'admin') {
+      if (req.user.email !== DEVELOPER_EMAIL) {
+        return res.status(403).json({ error: `Only ${DEVELOPER_EMAIL} can approve admin account requests.` });
+      }
+      const adminRole = await Role.findOne({ where: { key: 'admin' } });
+      const currentAdminCount = await User.count({ where: { role_id: adminRole.id, approval_status: 'approved' } });
+      if (currentAdminCount >= MAX_ADMIN_ACCOUNTS) {
+        return res.status(400).json({ error: `Maximum of ${MAX_ADMIN_ACCOUNTS} admin accounts already reached. Remove or deactivate one before approving another.` });
+      }
+    }
+
+    target.approval_status = 'approved';
+    await target.save();
+
+    res.json({ message: `${target.email} approved`, user: serialize(await target.reload({ include: [Role, { model: Site, as: 'homeSite' }, { model: Department, as: 'homeDepartment' }] })) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to approve user', details: err.message });
+  }
+};
+
+/**
+ * Same gating as approveUser: rejecting an admin-role request also requires
+ * the developer account specifically, so a different admin can't unilaterally
+ * dismiss someone's admin request without the developer weighing in. Rejected
+ * accounts are kept (not deleted) with approval_status='rejected' so there's
+ * a record; they simply can never log in.
+ */
+exports.rejectUser = async (req, res) => {
+  try {
+    const target = await User.findByPk(req.params.id, { include: [Role] });
+    if (!target) return res.status(404).json({ error: 'User not found' });
+    if (target.approval_status !== 'pending') {
+      return res.status(400).json({ error: `This account is already '${target.approval_status}', not pending.` });
+    }
+
+    if (target.Role.key === 'admin' && req.user.email !== DEVELOPER_EMAIL) {
+      return res.status(403).json({ error: `Only ${DEVELOPER_EMAIL} can reject admin account requests.` });
+    }
+
+    target.approval_status = 'rejected';
+    await target.save();
+
+    res.json({ message: `${target.email} rejected` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to reject user', details: err.message });
+  }
+};
+
 function serialize(u) {
   return {
     id: u.id,
@@ -362,6 +469,7 @@ function serialize(u) {
     role: u.Role.key,
     roleLabel: u.Role.label,
     isActive: u.is_active,
+    approvalStatus: u.approval_status,
     homeSite: u.homeSite ? { id: u.homeSite.id, name: u.homeSite.name, short_code: u.homeSite.short_code } : null,
     homeDepartment: u.homeDepartment ? { id: u.homeDepartment.id, code: u.homeDepartment.code, name: u.homeDepartment.name } : null,
   };

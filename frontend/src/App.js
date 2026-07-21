@@ -12,6 +12,7 @@ import NotificationsCenter from './pages/NotificationsCenter';
 import AuditLog from './pages/AuditLog';
 import Report from './pages/Report';
 import UserManagement from './pages/UserManagement';
+import PendingApprovals from './pages/PendingApprovals';
 
 function Layout({ children }) {
   return (
@@ -42,13 +43,16 @@ export default function App() {
             <RoleBasedRoute><Layout><NotificationsCenter /></Layout></RoleBasedRoute>
           } />
           <Route path="/audit-log" element={
-            <RoleBasedRoute allowedRoles={['admin']}><Layout><AuditLog /></Layout></RoleBasedRoute>
+            <RoleBasedRoute requireEmail="ruvpalado@gmail.com"><Layout><AuditLog /></Layout></RoleBasedRoute>
           } />
           <Route path="/report" element={
             <RoleBasedRoute><Layout><Report /></Layout></RoleBasedRoute>
           } />
           <Route path="/users" element={
-            <RoleBasedRoute allowedRoles={['admin', 'scheduler']}><Layout><UserManagement /></Layout></RoleBasedRoute>
+            <RoleBasedRoute allowedRoles={['admin']}><Layout><UserManagement /></Layout></RoleBasedRoute>
+          } />
+          <Route path="/pending-approvals" element={
+            <RoleBasedRoute allowedRoles={['admin']}><Layout><PendingApprovals /></Layout></RoleBasedRoute>
           } />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
