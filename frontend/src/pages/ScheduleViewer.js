@@ -171,7 +171,12 @@ export default function ScheduleViewer() {
                 </div>
                 <p className="mb-1"><strong>{t('physician')}:</strong> {s.physician?.full_name}</p>
                 <p className="mb-1"><strong>{t('startDate')}:</strong> {s.startDate} &nbsp; <strong>{t('endDate')}:</strong> {s.endDate}</p>
-                <p className="mb-2"><strong>{t('status')}:</strong> <span className="badge bg-secondary">{s.status}</span></p>
+                <p className="mb-2">
+                  <strong>{t('status')}:</strong> <span className="badge bg-secondary">{s.status}</span>
+                  {canEditWeeks && s.status === 'completed' && (
+                    <span className="ms-2 text-muted small">Weekly attendance is locked for completed rotations.</span>
+                  )}
+                </p>
                 {canDeleteSchedule && (
                   <button
                     type="button"
@@ -190,7 +195,7 @@ export default function ScheduleViewer() {
                         <td>{w.week_number}</td>
                         <td>{w.week_start_date}</td>
                         <td>
-                          {canEditWeeks ? (
+                          {canEditWeeks && s.status !== 'completed' ? (
                             <select className="form-select form-select-sm" value={w.status} onChange={(e) => updateWeek(w.id, e.target.value)}>
                               {WEEK_STATUS_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                             </select>

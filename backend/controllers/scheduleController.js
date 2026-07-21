@@ -106,6 +106,13 @@ exports.updateWeekStatus = async (req, res) => {
   const week = await RotationWeek.findByPk(weekId, { include: [{ model: RotationAssignment, }] });
   if (!week) return res.status(404).json({ error: 'Week not found' });
 
+  // Once a rotation is marked completed, its weekly attendance is locked --
+  // enforced here (not just hidden in the UI) so a direct API call can't
+  // change history on a finished rotation either.
+  if (week.RotationAssignment?.status === 'completed') {
+    return res.status(400).json({ error: 'This rotation is completed; weekly attendance can no longer be changed.' });
+  }
+
   week.status = status;
   await week.save();
 
