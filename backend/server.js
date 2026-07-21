@@ -30,6 +30,7 @@ app.use(helmet());
 // In production, restrict to the deployed frontend's origin via FRONTEND_URL.
 // Falls back to allow-all so local development keeps working out of the box.
 const allowedOrigin = process.env.FRONTEND_URL || '*';
+console.log(`[startup] CORS allowed origin resolved to: "${allowedOrigin}" (raw FRONTEND_URL env var: ${JSON.stringify(process.env.FRONTEND_URL)})`);
 app.use(cors({ origin: allowedOrigin }));
 app.use(express.json());
 app.use(morgan('dev'));

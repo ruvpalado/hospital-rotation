@@ -294,6 +294,65 @@ exports.seedDemoAccounts = async (req, res) => {
   }
 };
 
+/**
+ * One-time / repeatable maintenance action: permanently removes every demo
+ * account created by seedDemoAccounts (identified by the shared
+ * "*.demo@obgyn-rotation.local" email suffix, so it catches all of them
+ * regardless of role and doesn't need to be kept in sync with demoDefs
+ * above). Does NOT touch the real admin/developer accounts. Idempotent --
+ * if no demo accounts remain, just confirms that and does nothing.
+ *
+ * Same FK-safe deletion order used throughout this controller: notifications
+ * deleted outright, change requests the demo user filed deleted (their
+ * requested_by_id is required), resolved_by_id/approved_by_id references
+ * nulled out (optional columns), any rotation assignments where a demo user
+ * is the physician deleted along with their weeks, then audit-log
+ * attribution nulled before the user rows themselves are removed.
+ */
+exports.removeDemoAccounts = async (req, res) => {
+  try {
+    const { Op } = require('sequelize');
+    const demoUsers = await User.findAll({ where: { email: { [Op.like]: '%.demo@obgyn-rotation.local' } } });
+    const deletedUserIds = demoUsers.map((u) => u.id);
+    const deletedEmails = demoUsers.map((u) => u.email);
+
+    if (deletedUserIds.length > 0) {
+      await Notification.destroy({ where: { user_id: deletedUserIds } });
+      await ChangeRequest.destroy({ where: { requested_by_id: deletedUserIds } });
+      await ChangeRequest.update({ resolved_by_id: null }, { where: { resolved_by_id: deletedUserIds } });
+      await RotationAssignment.update({ approved_by_id: null }, { where: { approved_by_id: deletedUserIds } });
+
+      const orphanedAssignments = await RotationAssignment.findAll({
+        where: { physician_id: deletedUserIds },
+        attributes: ['id'],
+      });
+      const orphanedAssignmentIds = orphanedAssignments.map((a) => a.id);
+      if (orphanedAssignmentIds.length > 0) {
+        await RotationWeek.destroy({ where: { rotation_assignment_id: orphanedAssignmentIds } });
+        await RotationAssignment.destroy({ where: { id: orphanedAssignmentIds } });
+      }
+
+      await AuditLog.update({ user_id: null }, { where: { user_id: deletedUserIds } });
+      await User.destroy({ where: { id: deletedUserIds } });
+
+      await AuditLog.create({
+        user_id: req.user.id,
+        action: 'delete',
+        entity_type: 'demo_account_cleanup',
+        details: { deletedEmails },
+      });
+    }
+
+    res.json({
+      message: deletedUserIds.length > 0 ? 'All demo accounts removed' : 'No demo accounts found, nothing to do',
+      deletedEmails,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to remove demo accounts', details: err.message });
+  }
+};
+
 function serialize(u) {
   return {
     id: u.id,

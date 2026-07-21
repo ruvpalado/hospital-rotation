@@ -19,14 +19,17 @@ export default function Register() {
     api.get('/sites').catch(() => {}).then((res) => res && setSites(res.data));
   }, []);
 
-  // Department options depend on the chosen Site -- certain departments are
-  // only offered at specific hospitals (see backend/seed/data.js
-  // SITE_DEPARTMENTS). Re-fetches whenever siteId changes; with no site
-  // selected yet, falls back to the full unfiltered department list so the
-  // dropdown still has options to browse.
+  // Department options depend strictly on the chosen Site -- per the
+  // authoritative Site-Department guideline, each site's department list is
+  // unique and must never be merged with another site's. With no site
+  // selected yet, the dropdown stays empty rather than falling back to the
+  // full cross-site department list.
   useEffect(() => {
-    const params = form.siteId ? { siteId: form.siteId } : {};
-    api.get('/departments', { params }).catch(() => {}).then((res) => res && setDepartments(res.data));
+    if (!form.siteId) {
+      setDepartments([]);
+      return;
+    }
+    api.get('/departments', { params: { siteId: form.siteId } }).catch(() => {}).then((res) => res && setDepartments(res.data));
   }, [form.siteId]);
 
   // If the previously chosen department isn't offered at the newly chosen
@@ -106,13 +109,13 @@ export default function Register() {
           </div>
           <div className="mb-3">
             <label className="form-label">{t('department')}</label>
-            <select className="form-select" value={form.departmentId} onChange={handleChange('departmentId')}>
+            <select className="form-select" value={form.departmentId} onChange={handleChange('departmentId')} disabled={!form.siteId}>
               <option value="">-- none --</option>
               {departments.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
             </select>
-            {form.siteId && (
-              <div className="form-text">Showing only departments offered at the selected site.</div>
-            )}
+            <div className="form-text">
+              {form.siteId ? 'Showing only departments offered at the selected site.' : 'Select a site first to see its departments.'}
+            </div>
           </div>
           <button type="submit" className="btn btn-primary w-100">{t('register')}</button>
           <button type="button" className="btn btn-outline-secondary w-100 mt-2" onClick={handleReturnToLogin}>

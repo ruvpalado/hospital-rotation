@@ -25,4 +25,8 @@ router.post('/reset-all', authenticate, requireRole('admin'), userController.res
 // hospital_admin). Idempotent -- safe to call more than once.
 router.post('/seed-demo-accounts', authenticate, requireRole('admin'), userController.seedDemoAccounts);
 
+// Admin-only maintenance action: permanently remove every demo account
+// (anything ending in .demo@obgyn-rotation.local). Idempotent.
+router.post('/remove-demo-accounts', authenticate, requireRole('admin'), userController.removeDemoAccounts);
+
 module.exports = router;
