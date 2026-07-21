@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const authenticate = require('../middleware/auth');
 const requireRole = require('../middleware/roles');
+const { requireDeveloperEmail } = requireRole;
 const withAudit = require('../middleware/auditLogger');
 const scheduleController = require('../controllers/scheduleController');
 
@@ -19,5 +20,9 @@ router.post('/:id/approve', authenticate, requireRole('admin', 'dept_head'), wit
 // Admin-only maintenance action: wipe rotation-schedule test data (change
 // requests, weeks, assignments) without touching reference data.
 router.post('/clear-test-data', authenticate, requireRole('admin'), withAudit('delete', 'schedule'), scheduleController.clearTestData);
+
+// Restricted to the developer account only: permanently delete a single
+// rotation schedule (and its change requests / weekly attendance rows).
+router.delete('/:id', authenticate, requireDeveloperEmail, withAudit('delete', 'schedule'), scheduleController.deleteSchedule);
 
 module.exports = router;

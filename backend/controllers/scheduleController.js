@@ -109,6 +109,29 @@ exports.approveSchedule = async (req, res) => {
   res.json({ message: 'Approved', assignment: a });
 };
 
+/**
+ * Permanently deletes a single rotation assignment (and its dependent rows:
+ * change requests, which have a required rotation_assignment_id FK, and
+ * weekly attendance rows). Restricted to the developer account only (see
+ * routes/schedules.js requireDeveloperEmail) -- this is a one-off cleanup
+ * tool, not a general scheduling action.
+ */
+exports.deleteSchedule = async (req, res) => {
+  try {
+    const assignment = await RotationAssignment.findByPk(req.params.id);
+    if (!assignment) return res.status(404).json({ error: 'Not found' });
+
+    await ChangeRequest.destroy({ where: { rotation_assignment_id: assignment.id } });
+    await RotationWeek.destroy({ where: { rotation_assignment_id: assignment.id } });
+    await assignment.destroy();
+
+    res.json({ message: 'Rotation schedule deleted', id: Number(req.params.id) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete schedule', details: err.message });
+  }
+};
+
 // One-time / repeatable maintenance action: wipes rotation-schedule test
 // data (change requests, weeks, assignments) from whatever database this API
 // instance is actually connected to, without touching roles, sites,
