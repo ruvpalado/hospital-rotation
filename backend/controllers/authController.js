@@ -58,11 +58,30 @@ exports.register = async (req, res) => {
       approval_status: 'pending',
     });
 
+    const pendingMessage = roleKey === 'admin'
+      ? 'Registration submitted. Admin accounts require approval from the developer account before you can log in.'
+      : 'Registration submitted. An admin needs to approve your account before you can log in.';
+
+    // Best-effort: a failed confirmation email shouldn't fail the
+    // registration itself (the account is already created and correctly
+    // pending -- the applicant just won't get an early heads-up). Errors are
+    // logged, not thrown; sendNotification already records the delivery
+    // attempt (mock/sent/failed) on the Notification row either way.
+    try {
+      await sendNotification({
+        userId: user.id,
+        channel: 'email',
+        title: 'Registration Received',
+        message: `Hi ${fullName}, thanks for registering for OBGYN Master Rotation as a ${role.label}. ${pendingMessage} We'll email you again once it's been reviewed.`,
+        email: user.email,
+      });
+    } catch (notifyErr) {
+      console.error('Failed to send registration confirmation email:', notifyErr.message);
+    }
+
     return res.status(201).json({
       pendingApproval: true,
-      message: roleKey === 'admin'
-        ? 'Registration submitted. Admin accounts require approval from the developer account before you can log in.'
-        : 'Registration submitted. An admin needs to approve your account before you can log in.',
+      message: pendingMessage,
       user: publicUser(user, role),
     });
   } catch (err) {

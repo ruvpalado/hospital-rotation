@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const {
   sequelize, User, Role, Site, Department, AuditLog, Notification, RotationAssignment, RotationWeek, ChangeRequest,
 } = require('../models');
+const { sendNotification } = require('../services/notificationService');
 
 const MAX_ADMIN_ACCOUNTS = 3;
 const DEVELOPER_EMAIL = 'ruvpalado@gmail.com';
@@ -424,6 +425,20 @@ exports.approveUser = async (req, res) => {
     target.approval_status = 'approved';
     await target.save();
 
+    // Best-effort, same rationale as the registration email: don't let a
+    // failed notification undo or block the approval that already succeeded.
+    try {
+      await sendNotification({
+        userId: target.id,
+        channel: 'email',
+        title: 'Account Approved',
+        message: `Hi ${target.full_name}, your OBGYN Master Rotation account has been approved. You can now log in with the email and password you registered with.`,
+        email: target.email,
+      });
+    } catch (notifyErr) {
+      console.error('Failed to send approval email:', notifyErr.message);
+    }
+
     res.json({ message: `${target.email} approved`, user: serialize(await target.reload({ include: [Role, { model: Site, as: 'homeSite' }, { model: Department, as: 'homeDepartment' }] })) });
   } catch (err) {
     console.error(err);
@@ -452,6 +467,18 @@ exports.rejectUser = async (req, res) => {
 
     target.approval_status = 'rejected';
     await target.save();
+
+    try {
+      await sendNotification({
+        userId: target.id,
+        channel: 'email',
+        title: 'Account Registration Not Approved',
+        message: `Hi ${target.full_name}, your OBGYN Master Rotation account registration was not approved. Contact a hospital administrator if you believe this is a mistake.`,
+        email: target.email,
+      });
+    } catch (notifyErr) {
+      console.error('Failed to send rejection email:', notifyErr.message);
+    }
 
     res.json({ message: `${target.email} rejected` });
   } catch (err) {
