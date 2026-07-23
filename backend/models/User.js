@@ -17,5 +17,11 @@ module.exports = (sequelize, DataTypes) => {
     // flow) doesn't need to be touched -- only authController.register
     // explicitly sets 'pending'.
     approval_status: { type: DataTypes.ENUM('pending', 'approved', 'rejected'), defaultValue: 'approved' },
+    // Forgot Password: a bcrypt-hashed one-time code (never store the raw
+    // code) plus its expiry. Both are cleared back to null once the code is
+    // used successfully or superseded by a newer request. See
+    // authController.forgotPassword/verifyResetCode/resetPassword.
+    reset_code_hash: { type: DataTypes.STRING, allowNull: true },
+    reset_code_expires_at: { type: DataTypes.DATE, allowNull: true },
   }, { tableName: 'users' });
 };

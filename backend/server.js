@@ -123,12 +123,29 @@ async function ensurePhysicianNameColumn() {
   }
 }
 
+// Same rationale/pattern as the migrations above: Forgot Password needs
+// somewhere to keep a hashed one-time reset code and its expiry per user.
+async function ensureResetCodeColumns() {
+  const [existingColumns] = await sequelize.query('SHOW COLUMNS FROM users');
+  const hasResetCodeHash = existingColumns.some((c) => c.Field === 'reset_code_hash');
+  if (!hasResetCodeHash) {
+    await sequelize.query('ALTER TABLE users ADD COLUMN reset_code_hash VARCHAR(255) NULL');
+    console.log('[startup] Added users.reset_code_hash column');
+  }
+  const hasResetCodeExpiresAt = existingColumns.some((c) => c.Field === 'reset_code_expires_at');
+  if (!hasResetCodeExpiresAt) {
+    await sequelize.query('ALTER TABLE users ADD COLUMN reset_code_expires_at DATETIME NULL');
+    console.log('[startup] Added users.reset_code_expires_at column');
+  }
+}
+
 async function start() {
   try {
     await sequelize.authenticate();
     await sequelize.sync(); // for production use, migrate via sequelize-cli instead
     await ensureApprovalStatusColumn();
     await ensurePhysicianNameColumn();
+    await ensureResetCodeColumns();
     app.listen(PORT, () => console.log(`Hospital Rotation API listening on port ${PORT}`));
   } catch (err) {
     console.error('Failed to start server:', err);

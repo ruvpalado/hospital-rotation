@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import ForgotPasswordModal from './ForgotPasswordModal';
 
 export default function Login() {
   const { t } = useTranslation();
@@ -10,6 +11,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,11 +39,21 @@ export default function Login() {
             <input type="password" className="form-control" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
           <button type="submit" className="btn btn-primary w-100">{t('login')}</button>
+          <button
+            type="button"
+            className="btn btn-link w-100 mt-2"
+            onClick={() => setShowForgotPassword(true)}
+          >
+            {t('forgotPassword')}
+          </button>
         </form>
         <div className="text-center mt-3">
           <Link to="/register">{t('register')}</Link>
         </div>
       </div>
+      {showForgotPassword && (
+        <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} />
+      )}
     </div>
   );
 }

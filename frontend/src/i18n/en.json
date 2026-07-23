@@ -1,6 +1,7 @@
 {
   "appName": "OBGYN Master Rotation",
   "login": "Login",
+  "forgotPassword": "Forgot Password?",
   "register": "Register",
   "email": "Email",
   "password": "Password",
