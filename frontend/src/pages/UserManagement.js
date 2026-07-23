@@ -22,7 +22,7 @@ export default function UserManagement() {
   const [busyId, setBusyId] = useState(null);
 
   const isDeveloper = me?.email === DEVELOPER_EMAIL;
-  const [csvFile, setCsvFile] = useState(null);
+  const [rosterFile, setRosterFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadResult, setUploadResult] = useState(null);
@@ -61,23 +61,22 @@ export default function UserManagement() {
     }
   };
 
-  const handleCsvUpload = async (e) => {
+  const handleRosterUpload = async (e) => {
     e.preventDefault();
-    if (!csvFile) return;
+    if (!rosterFile) return;
     setUploadError('');
     setUploadResult(null);
     setUploading(true);
     try {
       const formData = new FormData();
-      formData.append('file', csvFile);
+      formData.append('file', rosterFile);
       // Deliberately no Content-Type header here -- letting the browser set
       // it (with the multipart boundary it generates for this FormData) is
       // required for multer to parse the request; setting it manually
       // without a boundary would break the upload.
-      const res = await api.post('/users/bulk-upload-doctors', formData);
+      const res = await api.post('/physician-roster/upload', formData);
       setUploadResult(res.data);
-      setCsvFile(null);
-      load();
+      setRosterFile(null);
     } catch (err) {
       setUploadError(err.response?.data?.error || 'Failed to upload CSV.');
     } finally {
@@ -95,22 +94,21 @@ export default function UserManagement() {
       {isDeveloper && (
         <div className="card mb-4" style={{ maxWidth: 640 }}>
           <div className="card-body">
-            <h6 className="card-title">Bulk Upload Doctors (CSV)</h6>
+            <h6 className="card-title">Physician Roster (CSV)</h6>
             <p className="text-muted small mb-2">
-              CSV columns (header row required): <code>full_name</code>, <code>email</code>,{' '}
-              <code>phone</code> (optional), <code>site_code</code> (optional, matches a site's short
-              code), <code>department_code</code> (optional, matches a department's code). Each new
-              account is created with the Physician role and emailed a one-time temporary password.
+              CSV with a single <code>name</code> column (header row required) -- just physician names,
+              no accounts or logins are created. These names appear as suggestions in the Physician field
+              when creating a rotation schedule, alongside real registered physician accounts.
             </p>
-            <form onSubmit={handleCsvUpload} className="d-flex align-items-center gap-2">
+            <form onSubmit={handleRosterUpload} className="d-flex align-items-center gap-2">
               <input
                 type="file"
                 accept=".csv,text/csv"
                 className="form-control"
                 style={{ maxWidth: 320 }}
-                onChange={(e) => setCsvFile(e.target.files[0] || null)}
+                onChange={(e) => setRosterFile(e.target.files[0] || null)}
               />
-              <button type="submit" className="btn btn-primary" disabled={!csvFile || uploading}>
+              <button type="submit" className="btn btn-primary" disabled={!rosterFile || uploading}>
                 {uploading ? 'Uploading...' : 'Upload'}
               </button>
             </form>
@@ -121,7 +119,7 @@ export default function UserManagement() {
                 {uploadResult.skipped?.length > 0 && (
                   <ul className="small mb-0 mt-2">
                     {uploadResult.skipped.map((s) => (
-                      <li key={s.row}>Row {s.row} ({s.email || 'no email'}): {s.reason}</li>
+                      <li key={s.row}>Row {s.row} ({s.name || 'blank'}): {s.reason}</li>
                     ))}
                   </ul>
                 )}

@@ -19,6 +19,7 @@ const kpiRoutes = require('./routes/kpis');
 const blockRoutes = require('./routes/blocks');
 const userRoutes = require('./routes/users');
 const roleRoutes = require('./routes/roles');
+const physicianRosterRoutes = require('./routes/physicianRoster');
 
 const app = express();
 // This is a live scheduling API, not static content -- always serve fresh data.
@@ -48,6 +49,7 @@ app.use('/api/kpis', kpiRoutes);
 app.use('/api/blocks', blockRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/roles', roleRoutes);
+app.use('/api/physician-roster', physicianRosterRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 // eslint-disable-next-line no-unused-vars

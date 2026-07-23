@@ -19,6 +19,7 @@ import api from '../api/axios';
  */
 export default function AddScheduleModal({ onClose, onCreated }) {
   const [physicians, setPhysicians] = useState([]);
+  const [roster, setRoster] = useState([]);
   const [siteDepartments, setSiteDepartments] = useState([]);
   const [blocks, setBlocks] = useState([]);
 
@@ -35,6 +36,12 @@ export default function AddScheduleModal({ onClose, onCreated }) {
 
   useEffect(() => {
     api.get('/users', { params: { role: 'physician' } }).then((res) => setPhysicians(res.data));
+    // Name-only roster (no accounts/logins) uploaded via CSV by the developer
+    // account -- see UserManagement.js "Physician Roster (CSV)" and
+    // backend/controllers/physicianRosterController.js. Purely adds extra
+    // autocomplete suggestions; typing/picking one of these names behaves
+    // exactly like any other free-typed name (physicianId stays unset).
+    api.get('/physician-roster').then((res) => setRoster(res.data)).catch(() => {});
     api.get('/sites/site-departments').then((res) => setSiteDepartments(res.data));
     api.get('/blocks').then((res) => setBlocks(res.data));
   }, []);
@@ -137,8 +144,16 @@ export default function AddScheduleModal({ onClose, onCreated }) {
                 />
                 <datalist id="physician-suggestions">
                   {physicians.map((p) => (
-                    <option key={p.id} value={physicianLabel(p)} />
+                    <option key={`account-${p.id}`} value={physicianLabel(p)} />
                   ))}
+                  {roster
+                    // Don't suggest a plain roster name that duplicates a
+                    // registered account's own name -- the account entry
+                    // above (with its email) is the better pick either way.
+                    .filter((r) => !physicians.some((p) => p.fullName.toLowerCase() === r.fullName.toLowerCase()))
+                    .map((r) => (
+                      <option key={`roster-${r.id}`} value={r.fullName} />
+                    ))}
                 </datalist>
                 {physicianInput && !physicianId && (
                   <div className="form-text">

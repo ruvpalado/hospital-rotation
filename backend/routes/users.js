@@ -1,14 +1,9 @@
 const router = require('express').Router();
-const multer = require('multer');
 const authenticate = require('../middleware/auth');
 const requireRole = require('../middleware/roles');
 const { requireDeveloperEmail } = requireRole;
 const withAudit = require('../middleware/auditLogger');
 const userController = require('../controllers/userController');
-
-// CSV uploads are parsed in memory (never written to disk) and capped at
-// 2MB, comfortably more than enough for a doctor-list spreadsheet.
-const csvUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
 // Only roles that assign/manage rotations need to browse or manage the user list.
 router.get('/', authenticate, requireRole('admin', 'scheduler', 'dept_head'), userController.list);
@@ -47,15 +42,5 @@ router.post('/sync-approval-column', authenticate, requireRole('admin'), userCon
 router.get('/pending', authenticate, requireDeveloperEmail, userController.listPending);
 router.post('/:id/approve', authenticate, requireDeveloperEmail, withAudit('edit', 'user'), userController.approveUser);
 router.post('/:id/reject', authenticate, requireDeveloperEmail, withAudit('edit', 'user'), userController.rejectUser);
-
-// Developer-only: bulk-create Physician accounts from an uploaded CSV (see
-// userController.bulkUploadDoctors for the expected column format).
-router.post(
-  '/bulk-upload-doctors',
-  authenticate,
-  requireDeveloperEmail,
-  csvUpload.single('file'),
-  userController.bulkUploadDoctors
-);
 
 module.exports = router;
