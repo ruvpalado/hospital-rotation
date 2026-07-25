@@ -52,6 +52,19 @@ export default function ScheduleViewer() {
 
   useEffect(load, []);
 
+  // Deep link from the navbar's "Schedules > Add Schedule" menu item
+  // (/schedules?add=1): open the Add Schedule modal on arrival, then strip
+  // the param so refreshing or sharing the URL doesn't re-open it.
+  useEffect(() => {
+    if (searchParams.get('add') === '1') {
+      if (canAddSchedule) setShowAddModal(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete('add');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, canAddSchedule]);
+
   const handleCreated = () => {
     setShowAddModal(false);
     load();
