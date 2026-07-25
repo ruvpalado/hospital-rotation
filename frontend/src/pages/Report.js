@@ -161,11 +161,13 @@ export default function Report() {
  */
 function ScheduleSummaryReport() {
   const [schedules, setSchedules] = useState(null);
-  // Two viewing options: 'site' groups everything under each facility;
-  // 'block' organizes physician schedules by block number across sites.
+  // Three viewing options: 'site' groups everything under each facility;
+  // 'block' organizes physician schedules by block number across sites;
+  // 'physician' shows each physician's own schedule across sites/blocks.
   const [mode, setMode] = useState('site');
   const [siteFilter, setSiteFilter] = useState('');
   const [blockFilter, setBlockFilter] = useState('');
+  const [physicianFilter, setPhysicianFilter] = useState('');
 
   useEffect(() => {
     api.get('/schedules').then((res) => setSchedules(res.data)).catch(() => setSchedules([]));
@@ -178,11 +180,13 @@ function ScheduleSummaryReport() {
   const filtered = schedules.filter((s) => {
     if (siteFilter && (s.site?.name || '') !== siteFilter) return false;
     if (blockFilter && String(s.block?.block_number || '') !== blockFilter) return false;
+    if (physicianFilter && (s.physician?.full_name || '') !== physicianFilter) return false;
     return true;
   });
 
   const allSiteNames = [...new Set(schedules.map((s) => s.site?.name).filter(Boolean))].sort();
   const allBlockNumbers = [...new Set(schedules.map((s) => s.block?.block_number).filter(Boolean))].sort((a, b) => a - b);
+  const allPhysicianNames = [...new Set(schedules.map((s) => s.physician?.full_name).filter(Boolean))].sort();
 
   // ---- Group by site -> { physicians, departments (dept -> physicians), rows } ----
   const sites = [];
@@ -236,6 +240,22 @@ function ScheduleSummaryReport() {
     });
   });
 
+  // ---- Group by physician -> { name, rows sorted by block } ----
+  const physicianGroups = [];
+  filtered.forEach((s) => {
+    const name = s.physician?.full_name || 'Unknown';
+    let entry = physicianGroups.find((p) => p.name === name);
+    if (!entry) {
+      entry = { name, rows: [] };
+      physicianGroups.push(entry);
+    }
+    entry.rows.push(s);
+  });
+  physicianGroups.sort((a, b) => a.name.localeCompare(b.name));
+  physicianGroups.forEach((p) => {
+    p.rows.sort((x, y) => (x.block?.block_number || 0) - (y.block?.block_number || 0));
+  });
+
   return (
     <div>
       {/* View + filter controls: on screen only, not on the printed page */}
@@ -255,6 +275,13 @@ function ScheduleSummaryReport() {
           >
             By Block
           </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${mode === 'physician' ? 'btn-primary' : 'btn-outline-primary'}`}
+            onClick={() => setMode('physician')}
+          >
+            By Physician
+          </button>
         </div>
         <select className="form-select form-select-sm" style={{ maxWidth: 260 }} value={siteFilter} onChange={(e) => setSiteFilter(e.target.value)}>
           <option value="">All sites</option>
@@ -264,8 +291,12 @@ function ScheduleSummaryReport() {
           <option value="">All blocks</option>
           {allBlockNumbers.map((n) => <option key={n} value={String(n)}>Block {n}</option>)}
         </select>
-        {(siteFilter || blockFilter) && (
-          <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => { setSiteFilter(''); setBlockFilter(''); }}>
+        <select className="form-select form-select-sm" style={{ maxWidth: 240 }} value={physicianFilter} onChange={(e) => setPhysicianFilter(e.target.value)}>
+          <option value="">All physicians</option>
+          {allPhysicianNames.map((name) => <option key={name} value={name}>{name}</option>)}
+        </select>
+        {(siteFilter || blockFilter || physicianFilter) && (
+          <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => { setSiteFilter(''); setBlockFilter(''); setPhysicianFilter(''); }}>
             Clear filters
           </button>
         )}
@@ -349,7 +380,7 @@ function ScheduleSummaryReport() {
                 </table>
               </div>
             ))
-          ) : (
+          ) : mode === 'block' ? (
             /* -------- View 2: By Block -------- */
             blocks.map((block) => (
               <div key={block.number} style={{ pageBreakInside: 'avoid' }}>
@@ -373,6 +404,35 @@ function ScheduleSummaryReport() {
                         <td>{s.department?.code} ({s.department?.name})</td>
                         <td>{s.physician?.full_name}</td>
                         <td>{s.startDate} to {s.endDate}</td>
+                        <td>{s.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))
+          ) : (
+            /* -------- View 3: By Physician -------- */
+            physicianGroups.map((p) => (
+              <div key={p.name} style={{ pageBreakInside: 'avoid' }}>
+                <h5 className="report-section-title">{p.name}</h5>
+                <table className="table table-sm table-striped table-bordered align-middle">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Block #</th>
+                      <th>Date</th>
+                      <th>Site</th>
+                      <th>Department</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {p.rows.map((s) => (
+                      <tr key={s.id}>
+                        <td>Block {s.block?.block_number}</td>
+                        <td>{s.startDate} to {s.endDate}</td>
+                        <td>{s.site?.name}</td>
+                        <td>{s.department?.code} ({s.department?.name})</td>
                         <td>{s.status}</td>
                       </tr>
                     ))}
