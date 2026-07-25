@@ -22,10 +22,10 @@ const DEVELOPER_EMAIL = 'ruvpalado@gmail.com';
 const DEVELOPER_PASSWORD = 'DevAccess#2026!';
 
 async function run() {
-  const adminRole = await Role.findOne({ where: { key: 'admin' } });
-  if (!adminRole) {
-    throw new Error("'admin' role not found -- run the seed script first.");
-  }
+  const [developerRole] = await Role.findOrCreate({
+    where: { key: 'developer' },
+    defaults: { key: 'developer', label: 'Developer' },
+  });
 
   const password_hash = await bcrypt.hash(DEVELOPER_PASSWORD, 10);
   const [user, created] = await User.findOrCreate({
@@ -34,7 +34,7 @@ async function run() {
       full_name: 'Ruel Palado (Developer)',
       email: DEVELOPER_EMAIL,
       password_hash,
-      role_id: adminRole.id,
+      role_id: developerRole.id,
       language_pref: 'en',
       is_active: true,
       approval_status: 'approved',
@@ -43,7 +43,7 @@ async function run() {
 
   if (!created) {
     user.password_hash = password_hash;
-    user.role_id = adminRole.id;
+    user.role_id = developerRole.id;
     user.is_active = true;
     user.approval_status = 'approved';
     await user.save();
@@ -52,7 +52,7 @@ async function run() {
   console.log(created ? 'Developer account created.' : 'Developer account already existed -- reset to a known-good state.');
   console.log(`  Email:    ${DEVELOPER_EMAIL}`);
   console.log(`  Password: ${DEVELOPER_PASSWORD}`);
-  console.log('  Role:     admin (approved, active)');
+  console.log('  Role:     developer (approved, active)');
 
   await sequelize.close();
 }

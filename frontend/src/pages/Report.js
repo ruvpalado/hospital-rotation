@@ -136,7 +136,7 @@ export default function Report() {
           <ScheduleSummaryReport />
         ) : (
           <>
-            {user?.role === 'admin' && <AdminReport data={overview} />}
+            {(user?.role === 'admin' || user?.role === 'developer') && <AdminReport data={overview} />}
             {user?.role === 'program_manager' && <AdminReport data={overview} />}
             {user?.role === 'hospital_admin' && <HospitalAdminReport data={overview} />}
             {user?.role === 'scheduler' && <SchedulerReport data={overview} />}
@@ -488,6 +488,7 @@ function ScheduleSummaryReport() {
 
 function roleReportTitle(role) {
   switch (role) {
+    case 'developer': return 'Admin Report';
     case 'admin': return 'Admin Report';
     case 'program_manager': return 'Program Manager Report';
     case 'hospital_admin': return 'Hospital Administrator Report';

@@ -46,9 +46,9 @@ export default function ScheduleViewer() {
   // The Master Scheduler can change a week's attendance status; other roles
   // see schedules read-only. Admin is included since the merged admin
   // account also holds Master Scheduler permissions.
-  const canEditWeeks = user?.role === 'scheduler' || user?.role === 'admin';
-  const canAddSchedule = user?.role === 'scheduler' || user?.role === 'admin';
-  const canEditSchedule = user?.role === 'scheduler' || user?.role === 'admin';
+  const canEditWeeks = user?.role === 'scheduler' || user?.role === 'admin' || user?.role === 'developer';
+  const canAddSchedule = user?.role === 'scheduler' || user?.role === 'admin' || user?.role === 'developer';
+  const canEditSchedule = user?.role === 'scheduler' || user?.role === 'admin' || user?.role === 'developer';
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [viewingPhysician, setViewingPhysician] = useState(null);
 

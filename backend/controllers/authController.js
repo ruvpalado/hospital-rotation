@@ -39,6 +39,12 @@ exports.register = async (req, res) => {
     if (!fullName || !email || !password || !roleKey) {
       return res.status(400).json({ error: 'fullName, email, password, roleKey are required' });
     }
+    // 'developer' is an internal, provision-only role -- it must never be
+    // requestable through self-registration (it's also not offered in the
+    // Register form's role dropdown).
+    if (roleKey === 'developer') {
+      return res.status(400).json({ error: 'That role cannot be requested.' });
+    }
     const role = await Role.findOne({ where: { key: roleKey } });
     if (!role) return res.status(400).json({ error: `Unknown role: ${roleKey}` });
 

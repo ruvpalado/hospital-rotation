@@ -15,6 +15,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   if (!user) return null;
   switch (user.role) {
+    case 'developer': return <AdminDashboard />;
     case 'admin': return <AdminDashboard />;
     case 'program_manager': return <AdminDashboard />;
     case 'hospital_admin': return <HospitalAdminDashboard />;

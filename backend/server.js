@@ -154,12 +154,29 @@ async function ensureResetCodeColumns() {
 const DEVELOPER_EMAIL = 'ruvpalado@gmail.com';
 const DEVELOPER_DEFAULT_PASSWORD = 'DevAccess#2026!';
 
-async function ensureDeveloperAccount() {
-  const adminRole = await Role.findOne({ where: { key: 'admin' } });
-  if (!adminRole) {
-    console.warn('[startup] Skipped developer-account provisioning: admin role not found (seed the database first).');
-    return;
+// roles.key is a MySQL ENUM; on databases created before the 'developer'
+// role existed the column has to be widened before we can insert it (a plain
+// sequelize.sync() never alters an existing ENUM). Idempotent -- re-running
+// with 'developer' already present is a harmless no-op.
+async function ensureDeveloperRoleEnum() {
+  const [columns] = await sequelize.query('SHOW COLUMNS FROM roles LIKE "key"');
+  const type = columns && columns[0] && columns[0].Type ? columns[0].Type : '';
+  if (!type.includes("'developer'")) {
+    await sequelize.query(
+      "ALTER TABLE roles MODIFY COLUMN `key` ENUM('developer','admin','dept_head','physician','program_manager','hospital_admin') NOT NULL"
+    );
+    console.log('[startup] Added \'developer\' to roles.key ENUM');
   }
+}
+
+async function ensureDeveloperAccount() {
+  await ensureDeveloperRoleEnum();
+  // The 'developer' role may not exist yet on databases seeded before it was
+  // introduced -- create it on the fly so the account below can use it.
+  const [developerRole] = await Role.findOrCreate({
+    where: { key: 'developer' },
+    defaults: { key: 'developer', label: 'Developer' },
+  });
 
   const [user, created] = await User.findOrCreate({
     where: { email: DEVELOPER_EMAIL },
@@ -167,7 +184,7 @@ async function ensureDeveloperAccount() {
       full_name: 'Ruel Palado (Developer)',
       email: DEVELOPER_EMAIL,
       password_hash: await bcrypt.hash(DEVELOPER_DEFAULT_PASSWORD, 10),
-      role_id: adminRole.id,
+      role_id: developerRole.id,
       language_pref: 'en',
       is_active: true,
       approval_status: 'approved',
@@ -180,14 +197,15 @@ async function ensureDeveloperAccount() {
   }
 
   // Existing account: never touch the password, but make sure it can log in
-  // and still holds the admin role the developer-gated endpoints depend on.
+  // and holds the developer role the developer-gated endpoints depend on
+  // (this also migrates an account previously provisioned as 'admin').
   let repaired = false;
   if (!user.is_active) { user.is_active = true; repaired = true; }
   if (user.approval_status !== 'approved') { user.approval_status = 'approved'; repaired = true; }
-  if (user.role_id !== adminRole.id) { user.role_id = adminRole.id; repaired = true; }
+  if (user.role_id !== developerRole.id) { user.role_id = developerRole.id; repaired = true; }
   if (repaired) {
     await user.save();
-    console.log(`[startup] Developer account ${DEVELOPER_EMAIL} repaired (active/approved/admin restored).`);
+    console.log(`[startup] Developer account ${DEVELOPER_EMAIL} repaired (active/approved/developer role restored).`);
   }
 }
 

@@ -1,8 +1,16 @@
 // Usage: requireRole('admin', 'scheduler')
+//
+// The 'developer' role (ruvpalado@gmail.com) is a superset of admin: any
+// endpoint open to 'admin' is also open to the developer. Enforced here in
+// one place so the dozens of requireRole('admin', ...) routes don't each
+// need to list 'developer' explicitly.
 function requireRole(...allowedRoles) {
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!allowedRoles.includes(req.user.role)) {
+    const effectiveRoles = req.user.role === 'developer'
+      ? [req.user.role, 'admin']
+      : [req.user.role];
+    if (!allowedRoles.some((r) => effectiveRoles.includes(r))) {
       return res.status(403).json({ error: 'Forbidden: insufficient role', required: allowedRoles });
     }
     next();

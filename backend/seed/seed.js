@@ -19,6 +19,7 @@ async function run() {
   // every scheduler permission too (see backend/routes/schedules.js), so
   // there's no separate scheduler role/account in a fresh seed.
   const roleDefs = [
+    { key: 'developer', label: 'Developer' },
     { key: 'admin', label: 'Admin' },
     { key: 'dept_head', label: 'Department Head' },
     { key: 'physician', label: 'Physician' },
