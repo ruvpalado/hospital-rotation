@@ -5,6 +5,7 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useColorMaps, colorFor } from '../utils/colorCoding';
 import AddScheduleModal from './AddScheduleModal';
+import EditScheduleModal from './EditScheduleModal';
 
 const WEEK_STATUS_OPTIONS = ['pending', 'attended', 'maternity_leave', 'annual_leave', 'absent'];
 
@@ -40,10 +41,10 @@ export default function ScheduleViewer() {
   // The Master Scheduler can create new rotation assignments, matching the
   // backend's POST /api/schedules permission (also open to admin, see above).
   const canAddSchedule = user?.role === 'scheduler' || user?.role === 'admin';
-  // Deleting a rotation schedule outright is restricted to the developer
-  // account (matches the backend's DELETE /api/schedules/:id gating).
-  const canDeleteSchedule = user?.email === 'ruvpalado@gmail.com';
-  const [deletingId, setDeletingId] = useState(null);
+  // Editing a schedule (via the Edit Schedule module) has the same audience
+  // as creating one; deleting lives inside that module, developer-only.
+  const canEditSchedule = user?.role === 'scheduler' || user?.role === 'admin';
+  const [editingSchedule, setEditingSchedule] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -70,17 +71,9 @@ export default function ScheduleViewer() {
     load();
   };
 
-  const handleDelete = async (schedule) => {
-    if (!window.confirm(`Permanently delete this rotation schedule for ${schedule.physician?.full_name || 'this physician'} (${schedule.site.name} / ${schedule.department.code})? This cannot be undone.`)) return;
-    setDeletingId(schedule.id);
-    try {
-      await api.delete(`/schedules/${schedule.id}`);
-      load();
-    } catch (err) {
-      window.alert(err.response?.data?.error || 'Failed to delete schedule.');
-    } finally {
-      setDeletingId(null);
-    }
+  const handleScheduleSaved = () => {
+    setEditingSchedule(null);
+    load();
   };
 
   const updateWeek = async (weekId, status) => {
@@ -160,6 +153,13 @@ export default function ScheduleViewer() {
       {showAddModal && (
         <AddScheduleModal onClose={() => setShowAddModal(false)} onCreated={handleCreated} />
       )}
+      {editingSchedule && (
+        <EditScheduleModal
+          schedule={editingSchedule}
+          onClose={() => setEditingSchedule(null)}
+          onSaved={handleScheduleSaved}
+        />
+      )}
       {visibleSchedules.length === 0 && (
         <p className="text-muted">
           {appliedSearch ? 'No schedules match that search.' : 'No rotation assignments found.'}
@@ -190,14 +190,13 @@ export default function ScheduleViewer() {
                     <span className="ms-2 text-muted small">Weekly attendance is locked for completed rotations.</span>
                   )}
                 </p>
-                {canDeleteSchedule && (
+                {canEditSchedule && (
                   <button
                     type="button"
-                    className="btn btn-outline-danger btn-sm mb-2"
-                    disabled={deletingId === s.id}
-                    onClick={() => handleDelete(s)}
+                    className="btn btn-outline-primary btn-sm mb-2"
+                    onClick={() => setEditingSchedule(s)}
                   >
-                    {deletingId === s.id ? 'Deleting...' : 'Delete Schedule'}
+                    Edit
                   </button>
                 )}
                 <table className="table table-sm">

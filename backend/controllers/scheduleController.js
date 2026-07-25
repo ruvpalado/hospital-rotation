@@ -99,6 +99,90 @@ exports.createSchedule = async (req, res) => {
   }
 };
 
+/**
+ * Edit an existing rotation schedule (physician, site/department, block,
+ * dates) from the Edit Schedule module. Physician follows the same
+ * resolution rules as createSchedule: a matching registered account keeps
+ * the account link (dashboard/KPIs/notifications), any other typed name is
+ * stored as free text with no account attached.
+ *
+ * If the start date or block changes, the weekly attendance rows are
+ * re-anchored to the new dates -- each week keeps its already-recorded
+ * status (attended/leave/etc.), weeks are added or removed only if the new
+ * block has a different total_weeks, and the assignment's derived status is
+ * recomputed afterwards.
+ */
+exports.updateSchedule = async (req, res) => {
+  try {
+    const assignment = await RotationAssignment.findByPk(req.params.id);
+    if (!assignment) return res.status(404).json({ error: 'Not found' });
+
+    const { physicianId, physicianName, siteDepartmentId, blockId, startDate, endDate } = req.body;
+
+    const block = await Block.findByPk(blockId);
+    if (!block) return res.status(400).json({ error: 'Invalid blockId' });
+    const siteDepartment = await SiteDepartment.findByPk(siteDepartmentId);
+    if (!siteDepartment) return res.status(400).json({ error: 'Invalid siteDepartmentId' });
+
+    let physician = null;
+    if (physicianId) {
+      physician = await User.findByPk(physicianId);
+      if (!physician) return res.status(400).json({ error: 'Invalid physicianId' });
+    }
+    const resolvedName = physician ? physician.full_name : (physicianName || '').trim();
+    if (!resolvedName) return res.status(400).json({ error: 'physicianName is required' });
+
+    const startChanged = String(assignment.start_date) !== String(startDate);
+    const blockChanged = Number(assignment.block_id) !== Number(blockId);
+
+    assignment.physician_id = physician ? physician.id : null;
+    assignment.physician_name = resolvedName;
+    assignment.site_department_id = Number(siteDepartmentId);
+    assignment.block_id = Number(blockId);
+    assignment.start_date = startDate;
+    assignment.end_date = endDate;
+    await assignment.save();
+
+    if (startChanged || blockChanged) {
+      const weeks = await RotationWeek.findAll({
+        where: { rotation_assignment_id: assignment.id },
+        order: [['week_number', 'ASC']],
+      });
+      const start = new Date(startDate);
+      for (let i = 0; i < block.total_weeks; i++) {
+        const weekStart = new Date(start);
+        weekStart.setDate(weekStart.getDate() + i * 7);
+        const dateStr = weekStart.toISOString().slice(0, 10);
+        const existing = weeks.find((w) => w.week_number === i + 1);
+        if (existing) {
+          existing.week_start_date = dateStr; // status intentionally preserved
+          await existing.save();
+        } else {
+          await RotationWeek.create({
+            rotation_assignment_id: assignment.id,
+            week_number: i + 1,
+            week_start_date: dateStr,
+            status: 'pending',
+          });
+        }
+      }
+      for (const w of weeks) {
+        if (w.week_number > block.total_weeks) await w.destroy();
+      }
+
+      const withWeeks = await RotationAssignment.findByPk(assignment.id, { include: [{ model: RotationWeek, as: 'weeks' }] });
+      withWeeks.status = deriveAssignmentStatus(withWeeks.weeks);
+      await withWeeks.save();
+    }
+
+    const full = await RotationAssignment.findByPk(assignment.id, { include: includeFull });
+    res.json(serialize(full));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update schedule', details: err.message });
+  }
+};
+
 /** Update a specific week's attendance status (attended / maternity_leave / annual_leave / absent) */
 exports.updateWeekStatus = async (req, res) => {
   const { weekId } = req.params;
