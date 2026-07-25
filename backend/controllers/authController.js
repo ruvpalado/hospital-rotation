@@ -48,6 +48,17 @@ exports.register = async (req, res) => {
     const role = await Role.findOne({ where: { key: roleKey } });
     if (!role) return res.status(400).json({ error: `Unknown role: ${roleKey}` });
 
+    // Role-based Site/Department requirements (mirrors the Register form):
+    //   dept_head       -> Site AND Department required
+    //   hospital_admin  -> Site required, Department ignored
+    //   any other role  -> neither required
+    if (roleKey === 'dept_head' && (!siteId || !departmentId)) {
+      return res.status(400).json({ error: 'Site and Department are required for the Department Head role.' });
+    }
+    if (roleKey === 'hospital_admin' && !siteId) {
+      return res.status(400).json({ error: 'Site is required for the Hospital Administrator role.' });
+    }
+
     const existing = await User.findOne({ where: { email } });
     if (existing) return res.status(409).json({ error: 'Email already registered' });
 

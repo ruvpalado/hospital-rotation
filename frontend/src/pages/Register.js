@@ -44,25 +44,37 @@ export default function Register() {
 
   const handleChange = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
-  // Site + Department are only relevant to the Department Head role. When the
-  // role changes to anything else, clear any site/department already chosen
-  // so a disabled (hidden) selection can't be submitted.
+  // Site/Department relevance by role:
+  //   Department Head       -> Site + Department (both required)
+  //   Hospital Administrator -> Site only (Department not applicable)
+  //   Any other role        -> neither
+  // When the role changes, clear whichever field no longer applies so a
+  // disabled selection can never be submitted.
+  const roleNeedsSite = (roleKey) => roleKey === 'dept_head' || roleKey === 'hospital_admin';
+  const roleNeedsDepartment = (roleKey) => roleKey === 'dept_head';
+
   const handleRoleChange = (e) => {
     const roleKey = e.target.value;
-    setForm((f) => (
-      roleKey === 'dept_head'
-        ? { ...f, roleKey }
-        : { ...f, roleKey, siteId: '', departmentId: '' }
-    ));
+    setForm((f) => ({
+      ...f,
+      roleKey,
+      siteId: roleNeedsSite(roleKey) ? f.siteId : '',
+      departmentId: roleNeedsDepartment(roleKey) ? f.departmentId : '',
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    // Department Head must specify both Site and Department; for every other
-    // role these fields are disabled and skipped entirely.
+    // Department Head: both Site and Department required.
+    // Hospital Administrator: Site required, Department ignored.
+    // Every other role: these fields are disabled and skipped entirely.
     if (form.roleKey === 'dept_head' && (!form.siteId || !form.departmentId)) {
       setError('Site and Department are required for the Department Head role.');
+      return;
+    }
+    if (form.roleKey === 'hospital_admin' && !form.siteId) {
+      setError('Site is required for the Hospital Administrator role.');
       return;
     }
     try {
@@ -84,9 +96,9 @@ export default function Register() {
     navigate('/login');
   };
 
-  // Only the Department Head role uses Site + Department; both fields are
-  // enabled and required for it, and disabled for all other roles.
-  const isDeptHead = form.roleKey === 'dept_head';
+  // Field enabling/requirement flags derived from the selected role.
+  const needsSite = roleNeedsSite(form.roleKey);         // dept_head + hospital_admin
+  const needsDepartment = roleNeedsDepartment(form.roleKey); // dept_head only
 
   if (pendingMessage) {
     return (
@@ -137,14 +149,14 @@ export default function Register() {
           </div>
           <div className="mb-2">
             <label className="form-label">
-              {t('site')}{isDeptHead && <span className="text-danger"> *</span>}
+              {t('site')}{needsSite && <span className="text-danger"> *</span>}
             </label>
             <select
               className="form-select"
               value={form.siteId}
               onChange={handleChange('siteId')}
-              required={isDeptHead}
-              disabled={!isDeptHead}
+              required={needsSite}
+              disabled={!needsSite}
             >
               <option value="">-- none --</option>
               {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -152,24 +164,26 @@ export default function Register() {
           </div>
           <div className="mb-3">
             <label className="form-label">
-              {t('department')}{isDeptHead && <span className="text-danger"> *</span>}
+              {t('department')}{needsDepartment && <span className="text-danger"> *</span>}
             </label>
             <select
               className="form-select"
               value={form.departmentId}
               onChange={handleChange('departmentId')}
-              required={isDeptHead}
-              disabled={!isDeptHead || !form.siteId}
+              required={needsDepartment}
+              disabled={!needsDepartment || !form.siteId}
             >
               <option value="">-- none --</option>
               {departments.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
             </select>
             <div className="form-text">
-              {!isDeptHead
-                ? 'Only required for the Department Head role.'
-                : form.siteId
-                  ? 'Showing only departments offered at the selected site.'
-                  : 'Select a site first to see its departments.'}
+              {form.roleKey === 'hospital_admin'
+                ? 'Not applicable for the Hospital Administrator role.'
+                : !needsDepartment
+                  ? 'Only required for the Department Head role.'
+                  : form.siteId
+                    ? 'Showing only departments offered at the selected site.'
+                    : 'Select a site first to see its departments.'}
             </div>
           </div>
           <button type="submit" className="btn btn-primary w-100">{t('register')}</button>
