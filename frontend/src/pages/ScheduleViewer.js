@@ -8,12 +8,20 @@ import AddScheduleModal from './AddScheduleModal';
 import EditScheduleModal from './EditScheduleModal';
 import PhysicianScheduleModal from './PhysicianScheduleModal';
 
-const WEEK_STATUS_OPTIONS = ['pending', 'attended', 'maternity_leave', 'annual_leave', 'absent'];
-
+/**
+ * Schedules page, restructured around physician selection:
+ *  - The list view shows ONLY physician names (one row per physician, with
+ *    a rotation count and the sites they rotate through).
+ *  - Clicking a name opens PhysicianScheduleModal: that physician's complete
+ *    schedule table (Block #, Date, Site, Department, Block Status) with
+ *    per-row week details, Print, and Edit (disabled once completed).
+ *  - Editing hands off to EditScheduleModal on top; the physician view stays
+ *    open underneath and refreshes when the edit is saved.
+ */
 export default function ScheduleViewer() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { siteColors, deptColors } = useColorMaps();
+  const { siteColors } = useColorMaps();
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -39,15 +47,9 @@ export default function ScheduleViewer() {
   // see schedules read-only. Admin is included since the merged admin
   // account also holds Master Scheduler permissions.
   const canEditWeeks = user?.role === 'scheduler' || user?.role === 'admin';
-  // The Master Scheduler can create new rotation assignments, matching the
-  // backend's POST /api/schedules permission (also open to admin, see above).
   const canAddSchedule = user?.role === 'scheduler' || user?.role === 'admin';
-  // Editing a schedule (via the Edit Schedule module) has the same audience
-  // as creating one; deleting lives inside that module, developer-only.
   const canEditSchedule = user?.role === 'scheduler' || user?.role === 'admin';
   const [editingSchedule, setEditingSchedule] = useState(null);
-  // Clicking a physician's name opens their complete schedule (all blocks,
-  // ordered) with a Print option -- see PhysicianScheduleModal.
   const [viewingPhysician, setViewingPhysician] = useState(null);
 
   const load = () => {
@@ -75,6 +77,9 @@ export default function ScheduleViewer() {
     load();
   };
 
+  // Saving (or deleting) from the Edit modal refreshes the data but keeps
+  // the physician's schedule view open underneath so the user sees the
+  // updated table immediately.
   const handleScheduleSaved = () => {
     setEditingSchedule(null);
     load();
@@ -108,12 +113,31 @@ export default function ScheduleViewer() {
     visibleSchedules = visibleSchedules.filter((s) => conflictIds.includes(s.id));
   }
 
+  // Collapse the visible schedules into one row per physician: name,
+  // rotation count, the sites involved, and whether any of their rotations
+  // is part of the active conflict filter.
+  const physicians = [];
+  visibleSchedules.forEach((s) => {
+    const name = s.physician?.full_name;
+    if (!name) return;
+    let entry = physicians.find((p) => p.name.toLowerCase() === name.toLowerCase());
+    if (!entry) {
+      entry = { name, count: 0, sites: [], hasConflict: false };
+      physicians.push(entry);
+    }
+    entry.count += 1;
+    if (s.site && !entry.sites.some((x) => x.short_code === s.site.short_code)) entry.sites.push(s.site);
+    if (conflictIds.includes(s.id)) entry.hasConflict = true;
+  });
+  physicians.sort((a, b) => a.name.localeCompare(b.name));
+
   if (loading) return <div className="text-center mt-5">Loading schedules...</div>;
 
   return (
-    <div className="container-fluid py-4">
+    <div className="container py-4" style={{ maxWidth: 860 }}>
       <div className="mb-3">
         <h4 className="mb-0">{t('schedules')}</h4>
+        <p className="text-muted small mb-0">Select a physician to view their complete schedule.</p>
       </div>
 
       <form className="d-flex align-items-center flex-wrap gap-2 mb-3" onSubmit={runSearch}>
@@ -138,15 +162,14 @@ export default function ScheduleViewer() {
 
       {appliedSearch && (
         <p className="text-muted small">
-          Showing {visibleSchedules.length} of {schedules.length} schedules matching "{searchInput}"
+          Showing {physicians.length} physician{physicians.length === 1 ? '' : 's'} matching "{searchInput}"
         </p>
       )}
 
       {conflictFilterActive && (
         <div className="alert alert-danger d-flex justify-content-between align-items-center">
           <span>
-            Showing {visibleSchedules.length} schedule{visibleSchedules.length === 1 ? '' : 's'} involved in an
-            overlapping-date conflict.
+            Showing physicians involved in an overlapping-date conflict.
           </span>
           <button type="button" className="btn btn-sm btn-outline-danger" onClick={clearConflictFilter}>
             Clear filter
@@ -157,6 +180,17 @@ export default function ScheduleViewer() {
       {showAddModal && (
         <AddScheduleModal onClose={() => setShowAddModal(false)} onCreated={handleCreated} />
       )}
+      {viewingPhysician && (
+        <PhysicianScheduleModal
+          physicianName={viewingPhysician}
+          schedules={schedules}
+          canEditWeeks={canEditWeeks}
+          canEditSchedule={canEditSchedule}
+          onEditSchedule={(s) => setEditingSchedule(s)}
+          onUpdateWeek={updateWeek}
+          onClose={() => setViewingPhysician(null)}
+        />
+      )}
       {editingSchedule && (
         <EditScheduleModal
           schedule={editingSchedule}
@@ -164,86 +198,39 @@ export default function ScheduleViewer() {
           onSaved={handleScheduleSaved}
         />
       )}
-      {viewingPhysician && (
-        <PhysicianScheduleModal
-          physicianName={viewingPhysician}
-          schedules={schedules}
-          onClose={() => setViewingPhysician(null)}
-        />
-      )}
-      {visibleSchedules.length === 0 && (
+
+      {physicians.length === 0 && (
         <p className="text-muted">
-          {appliedSearch ? 'No schedules match that search.' : 'No rotation assignments found.'}
+          {appliedSearch ? 'No physicians match that search.' : 'No rotation assignments found.'}
         </p>
       )}
-      <div className="row g-3">
-        {visibleSchedules.map((s) => (
-          <div className="col-md-6 col-lg-4" key={s.id}>
-            <div className={`card shadow-sm h-100 ${conflictIds.includes(s.id) ? 'border-danger border-2' : ''}`}>
-              <div className="card-header d-flex justify-content-between align-items-center"
-                   style={{ background: colorFor(siteColors, s.site.short_code), color: '#fff' }}>
-                <span>{s.site.name}</span>
-                <span className="badge bg-light text-dark">{s.block.name}</span>
-                {conflictIds.includes(s.id) && <span className="badge bg-danger ms-2">Conflict</span>}
-              </div>
-              <div className="card-body">
-                <div className="mb-2">
-                  <span className="badge" style={{ background: colorFor(deptColors, s.department.code), color: '#fff' }}>
-                    {s.department.code}
-                  </span>
-                  <span className="ms-2 text-muted small">{s.department.name}</span>
-                </div>
-                <p className="mb-1">
-                  <strong>{t('physician')}:</strong>{' '}
-                  <button
-                    type="button"
-                    className="btn btn-link p-0 align-baseline"
-                    style={{ textDecoration: 'underline dotted' }}
-                    title="View this physician's complete schedule"
-                    onClick={() => setViewingPhysician(s.physician?.full_name)}
-                  >
-                    {s.physician?.full_name}
-                  </button>
-                </p>
-                <p className="mb-1"><strong>{t('startDate')}:</strong> {s.startDate} &nbsp; <strong>{t('endDate')}:</strong> {s.endDate}</p>
-                <p className="mb-2">
-                  <strong>{t('status')}:</strong> <span className="badge bg-secondary">{s.status}</span>
-                  {canEditWeeks && s.status === 'completed' && (
-                    <span className="ms-2 text-muted small">Weekly attendance is locked for completed rotations.</span>
-                  )}
-                </p>
-                {canEditSchedule && (
-                  <button
-                    type="button"
-                    className="btn btn-outline-primary btn-sm mb-2"
-                    onClick={() => setEditingSchedule(s)}
-                  >
-                    Edit
-                  </button>
-                )}
-                <table className="table table-sm">
-                  <thead><tr><th>{t('week')}</th><th>Date</th><th>{t('status')}</th></tr></thead>
-                  <tbody>
-                    {s.weeks.map((w) => (
-                      <tr key={w.id}>
-                        <td>{w.week_number}</td>
-                        <td>{w.week_start_date}</td>
-                        <td>
-                          {canEditWeeks && s.status !== 'completed' ? (
-                            <select className="form-select form-select-sm" value={w.status} onChange={(e) => updateWeek(w.id, e.target.value)}>
-                              {WEEK_STATUS_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                            </select>
-                          ) : (
-                            <span className="badge bg-light text-dark">{w.status}</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+
+      <div className="list-group">
+        {physicians.map((p) => (
+          <button
+            key={p.name}
+            type="button"
+            className="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+            onClick={() => setViewingPhysician(p.name)}
+          >
+            <span className="d-flex align-items-center gap-2">
+              <span className="fw-semibold">{p.name}</span>
+              {p.hasConflict && <span className="badge bg-danger">Conflict</span>}
+            </span>
+            <span className="d-flex align-items-center gap-2">
+              {p.sites.map((site) => (
+                <span
+                  key={site.short_code}
+                  className="badge"
+                  style={{ background: colorFor(siteColors, site.short_code), color: '#fff' }}
+                  title={site.name}
+                >
+                  {site.short_code}
+                </span>
+              ))}
+              <span className="badge bg-secondary rounded-pill">{p.count} rotation{p.count === 1 ? '' : 's'}</span>
+            </span>
+          </button>
         ))}
       </div>
     </div>
