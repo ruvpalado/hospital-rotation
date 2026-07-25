@@ -84,12 +84,30 @@ exports.createSchedule = async (req, res) => {
     }
 
     // physician is null for a free-typed name with no matching account --
-    // there's nothing to notify in that case.
-    if (physician) await sendNotification({
-      userId: physician.id, channel: 'system', title: 'New Rotation Assigned',
-      message: `You have been assigned to Block ${block.block_number} starting ${startDate}.`,
-      phone: physician.phone, email: physician.email, relatedRotationId: assignment.id,
-    });
+    // there's nothing to notify in that case. For a registered physician,
+    // the assignment notice goes out on every channel we have contact
+    // details for: in-app (system), the email address and -- when a mobile
+    // number was provided at registration -- SMS. Each is best-effort so a
+    // delivery failure never rolls back the schedule that was just created.
+    if (physician) {
+      const sd = await SiteDepartment.findByPk(siteDepartmentId, { include: [Site, Department] });
+      const title = 'New Rotation Assigned';
+      const message = `Hi ${physician.full_name}, you have been assigned to Block ${block.block_number} (${block.name})`
+        + `${sd ? ` at ${sd.Site?.name} - ${sd.Department?.name}` : ''}, from ${startDate} to ${endDate}.`;
+
+      const channels = ['system', 'email'];
+      if (physician.phone) channels.push('sms');
+      for (const channel of channels) {
+        try {
+          await sendNotification({
+            userId: physician.id, channel, title, message,
+            phone: physician.phone, email: physician.email, relatedRotationId: assignment.id,
+          });
+        } catch (notifyErr) {
+          console.error(`Failed to send ${channel} notification for new rotation:`, notifyErr.message);
+        }
+      }
+    }
 
     const full = await RotationAssignment.findByPk(assignment.id, { include: includeFull });
     res.status(201).json(serialize(full));
