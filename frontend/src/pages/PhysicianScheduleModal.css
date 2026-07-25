@@ -1,0 +1,49 @@
+/* Physician schedule viewer: gentle open transition on screen, and a print
+   mode that shows ONLY the schedule sheet (navbar, cards, the modal chrome
+   itself all disappear) so Print / Save-as-PDF produces a clean document. */
+
+.physician-schedule-modal .modal-content {
+  animation: physician-modal-in 0.18s ease-out;
+}
+
+@keyframes physician-modal-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.physician-print-sheet .sheet-title {
+  display: none; /* on screen the modal header already shows the name */
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .physician-print-sheet,
+  .physician-print-sheet * {
+    visibility: visible !important;
+  }
+  .physician-print-sheet {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    padding: 24px;
+    background: #fff;
+  }
+  .physician-print-sheet .sheet-title {
+    display: block;
+  }
+  /* Bootstrap modals otherwise constrain/scroll the content */
+  .physician-schedule-modal,
+  .physician-schedule-modal .modal-dialog,
+  .physician-schedule-modal .modal-content,
+  .physician-schedule-modal .modal-body {
+    position: static !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    transform: none !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}

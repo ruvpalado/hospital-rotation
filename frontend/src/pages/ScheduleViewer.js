@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useColorMaps, colorFor } from '../utils/colorCoding';
 import AddScheduleModal from './AddScheduleModal';
 import EditScheduleModal from './EditScheduleModal';
+import PhysicianScheduleModal from './PhysicianScheduleModal';
 
 const WEEK_STATUS_OPTIONS = ['pending', 'attended', 'maternity_leave', 'annual_leave', 'absent'];
 
@@ -45,6 +46,9 @@ export default function ScheduleViewer() {
   // as creating one; deleting lives inside that module, developer-only.
   const canEditSchedule = user?.role === 'scheduler' || user?.role === 'admin';
   const [editingSchedule, setEditingSchedule] = useState(null);
+  // Clicking a physician's name opens their complete schedule (all blocks,
+  // ordered) with a Print option -- see PhysicianScheduleModal.
+  const [viewingPhysician, setViewingPhysician] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -160,6 +164,13 @@ export default function ScheduleViewer() {
           onSaved={handleScheduleSaved}
         />
       )}
+      {viewingPhysician && (
+        <PhysicianScheduleModal
+          physicianName={viewingPhysician}
+          schedules={schedules}
+          onClose={() => setViewingPhysician(null)}
+        />
+      )}
       {visibleSchedules.length === 0 && (
         <p className="text-muted">
           {appliedSearch ? 'No schedules match that search.' : 'No rotation assignments found.'}
@@ -182,7 +193,18 @@ export default function ScheduleViewer() {
                   </span>
                   <span className="ms-2 text-muted small">{s.department.name}</span>
                 </div>
-                <p className="mb-1"><strong>{t('physician')}:</strong> {s.physician?.full_name}</p>
+                <p className="mb-1">
+                  <strong>{t('physician')}:</strong>{' '}
+                  <button
+                    type="button"
+                    className="btn btn-link p-0 align-baseline"
+                    style={{ textDecoration: 'underline dotted' }}
+                    title="View this physician's complete schedule"
+                    onClick={() => setViewingPhysician(s.physician?.full_name)}
+                  >
+                    {s.physician?.full_name}
+                  </button>
+                </p>
                 <p className="mb-1"><strong>{t('startDate')}:</strong> {s.startDate} &nbsp; <strong>{t('endDate')}:</strong> {s.endDate}</p>
                 <p className="mb-2">
                   <strong>{t('status')}:</strong> <span className="badge bg-secondary">{s.status}</span>
