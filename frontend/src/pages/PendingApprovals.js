@@ -56,7 +56,7 @@ export default function PendingApprovals() {
 
   return (
     <div className="container-fluid py-4">
-      <h4 className="mb-1">Pending Approvals</h4>
+      <h4 className="mb-1">User Approval</h4>
       <p className="text-muted small mb-3">
         Approval rights are currently restricted to {DEVELOPER_EMAIL} for every pending request.
         Admin-role requests are additionally capped at 3 total admin accounts.
