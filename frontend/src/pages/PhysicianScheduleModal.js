@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './PhysicianScheduleModal.css';
 
 export const WEEK_STATUS_OPTIONS = ['pending', 'attended', 'maternity_leave', 'annual_leave', 'absent'];
@@ -26,6 +26,15 @@ export default function PhysicianScheduleModal({
   onClose,
 }) {
   const [expandedId, setExpandedId] = useState(null);
+
+  // Scope this modal's aggressive print CSS (which hides everything except
+  // the schedule sheet) to only apply while the modal is actually open --
+  // otherwise it blanks out printing on every other page of the app. See
+  // PhysicianScheduleModal.css.
+  useEffect(() => {
+    document.body.classList.add('physician-print-mode');
+    return () => document.body.classList.remove('physician-print-mode');
+  }, []);
 
   const rows = schedules
     .filter((s) => (s.physician?.full_name || '').toLowerCase() === physicianName.toLowerCase())

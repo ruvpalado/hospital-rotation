@@ -15,29 +15,34 @@
   display: none; /* on screen the modal header already shows the name */
 }
 
+/* All print rules are scoped to body.physician-print-mode, which
+   PhysicianScheduleModal adds only while it is mounted. CRA bundles every
+   imported CSS file globally, so without this scoping the blanket
+   "visibility: hidden" below would blank out printing on EVERY page of the
+   app (e.g. the Report module) even when this modal isn't open. */
 @media print {
-  body * {
+  body.physician-print-mode * {
     visibility: hidden !important;
   }
-  .physician-print-sheet,
-  .physician-print-sheet * {
+  body.physician-print-mode .physician-print-sheet,
+  body.physician-print-mode .physician-print-sheet * {
     visibility: visible !important;
   }
-  .physician-print-sheet {
+  body.physician-print-mode .physician-print-sheet {
     position: absolute;
     inset: 0;
     width: 100%;
     padding: 24px;
     background: #fff;
   }
-  .physician-print-sheet .sheet-title {
+  body.physician-print-mode .physician-print-sheet .sheet-title {
     display: block;
   }
   /* Bootstrap modals otherwise constrain/scroll the content */
-  .physician-schedule-modal,
-  .physician-schedule-modal .modal-dialog,
-  .physician-schedule-modal .modal-content,
-  .physician-schedule-modal .modal-body {
+  body.physician-print-mode .physician-schedule-modal,
+  body.physician-print-mode .physician-schedule-modal .modal-dialog,
+  body.physician-print-mode .physician-schedule-modal .modal-content,
+  body.physician-print-mode .physician-schedule-modal .modal-body {
     position: static !important;
     overflow: visible !important;
     max-height: none !important;
