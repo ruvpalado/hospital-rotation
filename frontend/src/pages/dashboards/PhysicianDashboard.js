@@ -22,7 +22,7 @@ export default function PhysicianDashboard() {
       <h4 className="mb-3">My Rotation Progress</h4>
       <div className="row g-3 mb-4">
         <div className="col-md-4"><KpiCard label={t('individualRotationCompletion')} value={irc.pct} suffix="%" subtext={`${irc.completed}/${irc.totalRequired} blocks completed`} accent="#4A90D9" /></div>
-        <div className="col-md-4"><KpiCard label={t('specialtyExposure')} value={se.pct} suffix="%" subtext={`${se.distinctDepartments}/${se.totalDepartments} departments rotated through`} accent="#7FB37F" /></div>
+        <div className="col-md-4"><KpiCard label={t('specialtyExposure')} value={se.pct} suffix="%" subtext={`${se.distinctDepartments}/${se.totalBlocks} blocks in a distinct specialty`} accent="#7FB37F" /></div>
       </div>
 
       <div className="row g-3">
@@ -37,11 +37,18 @@ export default function PhysicianDashboard() {
         </div>
         <div className="col-md-6">
           <div className="card shadow-sm p-3">
-            <h6>{t('specialtyExposure')}</h6>
-            <Doughnut data={{
-              labels: ['Exposed', 'Not yet'],
-              datasets: [{ data: [se.distinctDepartments, Math.max(0, se.totalDepartments - se.distinctDepartments)], backgroundColor: ['#4A90D9', '#e0e0e0'] }],
-            }} />
+            <h6>{t('specialtyExposure')} — departments assigned</h6>
+            {Object.keys(se.byDepartment || {}).length === 0 ? (
+              <p className="text-muted small mb-0">No rotation assignments yet.</p>
+            ) : (
+              <Doughnut data={{
+                labels: Object.keys(se.byDepartment),
+                datasets: [{
+                  data: Object.values(se.byDepartment),
+                  backgroundColor: Object.keys(se.byDepartment).map((_, i) => `hsl(${(i * 53) % 360},65%,55%)`),
+                }],
+              }} options={{ plugins: { legend: { position: 'bottom' } } }} />
+            )}
           </div>
         </div>
       </div>

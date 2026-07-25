@@ -932,9 +932,15 @@ function PhysicianReport({ data }) {
     labels: ['Completed', 'Remaining'],
     datasets: [{ data: [irc.completed, Math.max(irc.totalRequired - irc.completed, 0)], backgroundColor: ['#7FB37F', '#e9ecef'] }],
   };
+  // Specialty Exposure pie: the departments the physician is assigned to
+  // (block count per department). Falls back to an empty-state below.
+  const seDeptLabels = Object.keys(se.byDepartment || {});
   const seData = {
-    labels: ['Rotated through', 'Remaining'],
-    datasets: [{ data: [se.distinctDepartments, Math.max(se.totalDepartments - se.distinctDepartments, 0)], backgroundColor: ['#4A90D9', '#e9ecef'] }],
+    labels: seDeptLabels,
+    datasets: [{
+      data: Object.values(se.byDepartment || {}),
+      backgroundColor: seDeptLabels.map((_, i) => `hsl(${(i * 53) % 360},65%,55%)`),
+    }],
   };
   const ndData = {
     labels: ['Delivered', 'Missed'],
@@ -953,8 +959,12 @@ function PhysicianReport({ data }) {
         </div>
         <div className="col-md-4 text-center">
           <h6 className="mb-2">Specialty Exposure</h6>
-          <ChartBox><Doughnut data={seData} options={doughnutOptions} /></ChartBox>
-          <div className="text-muted small">{se.distinctDepartments}/{se.totalDepartments} departments ({se.pct}%)</div>
+          {seDeptLabels.length === 0 ? (
+            <ChartBox><div className="d-flex align-items-center justify-content-center h-100 text-muted small">No assignments yet</div></ChartBox>
+          ) : (
+            <ChartBox><Doughnut data={seData} options={doughnutOptions} /></ChartBox>
+          )}
+          <div className="text-muted small">{se.distinctDepartments}/{se.totalBlocks} blocks in a distinct specialty ({se.pct}%)</div>
         </div>
         <div className="col-md-4 text-center">
           <h6 className="mb-2">Notification Delivery</h6>
@@ -965,7 +975,7 @@ function PhysicianReport({ data }) {
 
       <h6 className="mt-4 mb-2">Detailed Figures</h6>
       <Row label="Individual Rotation Completion" value={`${irc.pct}%`} subtext={`${irc.completed}/${irc.totalRequired} curriculum blocks completed`} />
-      <Row label="Specialty Exposure" value={`${se.pct}%`} subtext={`${se.distinctDepartments}/${se.totalDepartments} departments rotated through`} />
+      <Row label="Specialty Exposure" value={`${se.pct}%`} subtext={`${se.distinctDepartments} distinct department(s) across ${se.totalBlocks} curriculum blocks`} />
       <Row label="Notification Delivery Rate" value={`${nd.pct}%`} subtext={`${nd.succeeded}/${nd.total} notifications delivered`} />
     </div>
   );

@@ -170,13 +170,31 @@ async function individualRotationCompletion(physicianId) {
   return { completed, totalRequired: TOTAL_CURRICULUM_BLOCKS, pct };
 }
 
-/** 8. Specialty Exposure = distinct departments rotated / total departments offered * 100 */
+/**
+ * 8. Specialty Exposure = distinct departments the physician has rotated
+ * through, measured against the total number of curriculum blocks (13) --
+ * i.e. how much of the 13-block curriculum has exposed them to a distinct
+ * specialty. Also returns a per-department block count for the dashboard
+ * pie chart (the departments where the physician has assignments).
+ */
 async function specialtyExposure(physicianId) {
-  const totalDepartments = await Department.count();
   const assignments = await getAssignmentsWithWeeks({ physician_id: physicianId });
   const distinctDepts = new Set(assignments.map((a) => a.SiteDepartment.Department.id));
-  const pct = totalDepartments > 0 ? round((distinctDepts.size / totalDepartments) * 100) : 0;
-  return { distinctDepartments: distinctDepts.size, totalDepartments, pct };
+
+  // Blocks per department -> pie chart data (keyed by department code).
+  const byDepartment = {};
+  assignments.forEach((a) => {
+    const code = a.SiteDepartment.Department.code;
+    byDepartment[code] = (byDepartment[code] || 0) + 1;
+  });
+
+  const pct = round((distinctDepts.size / TOTAL_CURRICULUM_BLOCKS) * 100);
+  return {
+    distinctDepartments: distinctDepts.size,
+    totalBlocks: TOTAL_CURRICULUM_BLOCKS,
+    byDepartment,
+    pct,
+  };
 }
 
 /** 9. Rotation Equity = 1 - coefficient of variation of completed-rotation counts across physicians, as % */
