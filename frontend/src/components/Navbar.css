@@ -170,3 +170,45 @@
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.45);
 }
+
+/* ---- Print layout ----
+   Reports are the only thing worth printing: the navbar collapses to a
+   slim, ink-friendly single row of section names (no dropdown menus, no
+   active-state accents), and the user identity / Language / Logout controls
+   disappear entirely -- the report body already states who generated it
+   below the title. */
+@media print {
+  .app-navbar {
+    background: #fff !important;
+    box-shadow: none;
+    border-bottom: 1px solid #bbb;
+    min-height: auto;
+    padding: 4px 0;
+  }
+  .app-navbar .brand {
+    color: #000;
+    font-size: 0.95rem;
+    margin-inline-end: 0.75rem;
+  }
+  .app-navbar .nav-items {
+    flex-wrap: nowrap;
+    gap: 0;
+  }
+  .app-navbar .nav-item-link,
+  .app-navbar .nav-dropdown-toggle {
+    color: #444 !important;
+    background: none !important;
+    font-size: 0.78rem;
+    padding: 0.15rem 0.45rem;
+    white-space: nowrap;
+  }
+  .app-navbar .nav-dropdown-menu,
+  .app-navbar .nav-dropdown-toggle .caret,
+  .app-navbar .nav-item-link.active::after,
+  .app-navbar .nav-dropdown-toggle.child-active::after {
+    display: none !important;
+  }
+  .app-navbar .nav-right {
+    display: none !important;
+  }
+}
