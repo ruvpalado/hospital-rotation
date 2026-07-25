@@ -74,6 +74,20 @@ async function run() {
     password_hash, role_id: roles.admin.id, language_pref: 'en',
   });
 
+  // A Hospital Administrator test account, scoped to the first site so its
+  // hospital-scoped dashboard has data. Lets the Hospital Administrator role
+  // (and its permission boundaries -- e.g. no Users tab) be tested directly.
+  const firstSiteForAdmin = sites[Object.keys(sites)[0]];
+  await User.create({
+    full_name: 'Dr. Hospital Administrator',
+    email: 'hospitaladmin@obgyn-rotation.local',
+    phone: '+96890000002',
+    password_hash,
+    role_id: roles.hospital_admin.id,
+    home_site_id: firstSiteForAdmin ? firstSiteForAdmin.id : null,
+    language_pref: 'en',
+  });
+
   // Department heads for a representative subset of departments
   const deptHeadCodes = ['GOBG & HRP', 'GY-ONC', 'URGY', 'MM & HRP', 'REI, INF & MIS', 'DS'];
   const deptHeads = {};
