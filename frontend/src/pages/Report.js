@@ -336,28 +336,34 @@ function ScheduleSummaryReport() {
         <p className="text-muted">No schedules match the selected filters.</p>
       ) : (
         <>
-          {/* Network overview: physician assignments per facility (both views) */}
-          <h5 className="report-section-title">Physician Assignments per Facility</h5>
-          <table className="table table-sm table-bordered align-middle">
-            <thead className="table-light">
-              <tr>
-                <th>Facility</th>
-                <th className="text-center">Physicians</th>
-                <th className="text-center">Rotations</th>
-                <th>Assigned Physicians</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sites.map((site) => (
-                <tr key={site.name}>
-                  <td className="fw-semibold">{site.name}</td>
-                  <td className="text-center">{site.physicians.length}</td>
-                  <td className="text-center">{site.rows.length}</td>
-                  <td className="small">{[...site.physicians].sort().join(', ')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* Network overview: physician assignments per facility. Hidden in
+              the By Physician view when a specific physician is selected --
+              that's an individual record, not an overall summary. */}
+          {!(mode === 'physician' && physicianFilter) && (
+            <>
+              <h5 className="report-section-title">Physician Assignments per Facility</h5>
+              <table className="table table-sm table-bordered align-middle">
+                <thead className="table-light">
+                  <tr>
+                    <th>Facility</th>
+                    <th className="text-center">Physicians</th>
+                    <th className="text-center">Rotations</th>
+                    <th>Assigned Physicians</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sites.map((site) => (
+                    <tr key={site.name}>
+                      <td className="fw-semibold">{site.name}</td>
+                      <td className="text-center">{site.physicians.length}</td>
+                      <td className="text-center">{site.rows.length}</td>
+                      <td className="small">{[...site.physicians].sort().join(', ')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
 
           {mode === 'site' ? (
             /* -------- View 1: By Site -------- */
