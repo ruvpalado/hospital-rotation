@@ -258,46 +258,71 @@ function ScheduleSummaryReport() {
 
   return (
     <div>
-      {/* View + filter controls: on screen only, not on the printed page */}
+      {/* View + filter controls: on screen only, not on the printed page.
+          Each view enables ONLY its own dropdown (By Site -> Site, By Block
+          -> Block, By Physician -> Physician); the other two are disabled
+          and cleared on view switch so a hidden stale filter can never
+          constrain the report. */}
       <div className="no-print d-flex align-items-center flex-wrap gap-2 mb-3">
         <div className="btn-group" role="group">
           <button
             type="button"
             className={`btn btn-sm ${mode === 'site' ? 'btn-primary' : 'btn-outline-primary'}`}
-            onClick={() => setMode('site')}
+            onClick={() => { setMode('site'); setBlockFilter(''); setPhysicianFilter(''); }}
           >
             By Site
           </button>
           <button
             type="button"
             className={`btn btn-sm ${mode === 'block' ? 'btn-primary' : 'btn-outline-primary'}`}
-            onClick={() => setMode('block')}
+            onClick={() => { setMode('block'); setSiteFilter(''); setPhysicianFilter(''); }}
           >
             By Block
           </button>
           <button
             type="button"
             className={`btn btn-sm ${mode === 'physician' ? 'btn-primary' : 'btn-outline-primary'}`}
-            onClick={() => setMode('physician')}
+            onClick={() => { setMode('physician'); setSiteFilter(''); setBlockFilter(''); }}
           >
             By Physician
           </button>
         </div>
-        <select className="form-select form-select-sm" style={{ maxWidth: 260 }} value={siteFilter} onChange={(e) => setSiteFilter(e.target.value)}>
+        <select
+          className="form-select form-select-sm"
+          style={{ maxWidth: 260 }}
+          value={siteFilter}
+          onChange={(e) => setSiteFilter(e.target.value)}
+          disabled={mode !== 'site'}
+          title={mode !== 'site' ? 'Available in the By Site view' : undefined}
+        >
           <option value="">All sites</option>
           {allSiteNames.map((name) => <option key={name} value={name}>{name}</option>)}
         </select>
-        <select className="form-select form-select-sm" style={{ maxWidth: 160 }} value={blockFilter} onChange={(e) => setBlockFilter(e.target.value)}>
+        <select
+          className="form-select form-select-sm"
+          style={{ maxWidth: 160 }}
+          value={blockFilter}
+          onChange={(e) => setBlockFilter(e.target.value)}
+          disabled={mode !== 'block'}
+          title={mode !== 'block' ? 'Available in the By Block view' : undefined}
+        >
           <option value="">All blocks</option>
           {allBlockNumbers.map((n) => <option key={n} value={String(n)}>Block {n}</option>)}
         </select>
-        <select className="form-select form-select-sm" style={{ maxWidth: 240 }} value={physicianFilter} onChange={(e) => setPhysicianFilter(e.target.value)}>
+        <select
+          className="form-select form-select-sm"
+          style={{ maxWidth: 240 }}
+          value={physicianFilter}
+          onChange={(e) => setPhysicianFilter(e.target.value)}
+          disabled={mode !== 'physician'}
+          title={mode !== 'physician' ? 'Available in the By Physician view' : undefined}
+        >
           <option value="">All physicians</option>
           {allPhysicianNames.map((name) => <option key={name} value={name}>{name}</option>)}
         </select>
         {(siteFilter || blockFilter || physicianFilter) && (
           <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => { setSiteFilter(''); setBlockFilter(''); setPhysicianFilter(''); }}>
-            Clear filters
+            Clear filter
           </button>
         )}
       </div>
