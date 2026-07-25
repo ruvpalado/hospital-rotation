@@ -5,7 +5,8 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const cron = require('node-cron');
 
-const { sequelize, User, RotationAssignment, Block } = require('./models');
+const bcrypt = require('bcryptjs');
+const { sequelize, User, Role, RotationAssignment, Block } = require('./models');
 const { sendUpcomingRotationReminder } = require('./services/notificationService');
 
 const authRoutes = require('./routes/auth');
@@ -19,7 +20,6 @@ const kpiRoutes = require('./routes/kpis');
 const blockRoutes = require('./routes/blocks');
 const userRoutes = require('./routes/users');
 const roleRoutes = require('./routes/roles');
-const physicianRosterRoutes = require('./routes/physicianRoster');
 
 const app = express();
 // This is a live scheduling API, not static content -- always serve fresh data.
@@ -49,7 +49,6 @@ app.use('/api/kpis', kpiRoutes);
 app.use('/api/blocks', blockRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/roles', roleRoutes);
-app.use('/api/physician-roster', physicianRosterRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 // eslint-disable-next-line no-unused-vars
@@ -141,6 +140,55 @@ async function ensureResetCodeColumns() {
   }
 }
 
+// Permanent developer account: re-provisioned on every server boot, so it
+// survives anything that wipes or rebuilds the database (the development
+// environment's pre-deploy seed, a fresh production database, a manual
+// reset). findOrCreate keyed on email means an EXISTING account is left
+// completely untouched -- in particular, a password the developer changed
+// via Forgot Password is never reset back to the default; only a missing
+// account gets (re)created with the default password. If it exists but was
+// deactivated/unapproved somehow, those two flags are repaired so the
+// account can always log in.
+const DEVELOPER_EMAIL = 'ruvpalado@gmail.com';
+const DEVELOPER_DEFAULT_PASSWORD = 'DevAccess#2026!';
+
+async function ensureDeveloperAccount() {
+  const adminRole = await Role.findOne({ where: { key: 'admin' } });
+  if (!adminRole) {
+    console.warn('[startup] Skipped developer-account provisioning: admin role not found (seed the database first).');
+    return;
+  }
+
+  const [user, created] = await User.findOrCreate({
+    where: { email: DEVELOPER_EMAIL },
+    defaults: {
+      full_name: 'Ruel Palado (Developer)',
+      email: DEVELOPER_EMAIL,
+      password_hash: await bcrypt.hash(DEVELOPER_DEFAULT_PASSWORD, 10),
+      role_id: adminRole.id,
+      language_pref: 'en',
+      is_active: true,
+      approval_status: 'approved',
+    },
+  });
+
+  if (created) {
+    console.log(`[startup] Developer account ${DEVELOPER_EMAIL} created (default password -- change it via Forgot Password).`);
+    return;
+  }
+
+  // Existing account: never touch the password, but make sure it can log in
+  // and still holds the admin role the developer-gated endpoints depend on.
+  let repaired = false;
+  if (!user.is_active) { user.is_active = true; repaired = true; }
+  if (user.approval_status !== 'approved') { user.approval_status = 'approved'; repaired = true; }
+  if (user.role_id !== adminRole.id) { user.role_id = adminRole.id; repaired = true; }
+  if (repaired) {
+    await user.save();
+    console.log(`[startup] Developer account ${DEVELOPER_EMAIL} repaired (active/approved/admin restored).`);
+  }
+}
+
 async function start() {
   try {
     await sequelize.authenticate();
@@ -148,6 +196,7 @@ async function start() {
     await ensureApprovalStatusColumn();
     await ensurePhysicianNameColumn();
     await ensureResetCodeColumns();
+    await ensureDeveloperAccount();
     app.listen(PORT, () => console.log(`Hospital Rotation API listening on port ${PORT}`));
   } catch (err) {
     console.error('Failed to start server:', err);
