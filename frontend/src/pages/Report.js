@@ -161,6 +161,11 @@ export default function Report() {
  */
 function ScheduleSummaryReport() {
   const [schedules, setSchedules] = useState(null);
+  // Two viewing options: 'site' groups everything under each facility;
+  // 'block' organizes physician schedules by block number across sites.
+  const [mode, setMode] = useState('site');
+  const [siteFilter, setSiteFilter] = useState('');
+  const [blockFilter, setBlockFilter] = useState('');
 
   useEffect(() => {
     api.get('/schedules').then((res) => setSchedules(res.data)).catch(() => setSchedules([]));
@@ -169,9 +174,19 @@ function ScheduleSummaryReport() {
   if (schedules === null) return <div className="text-muted">Building schedule summary...</div>;
   if (schedules.length === 0) return <p className="text-muted">No rotation schedules recorded yet.</p>;
 
-  // Group by site -> { physicians, departments: dept -> physician set, rows }
+  // Apply filters before grouping so every table reflects the selection.
+  const filtered = schedules.filter((s) => {
+    if (siteFilter && (s.site?.name || '') !== siteFilter) return false;
+    if (blockFilter && String(s.block?.block_number || '') !== blockFilter) return false;
+    return true;
+  });
+
+  const allSiteNames = [...new Set(schedules.map((s) => s.site?.name).filter(Boolean))].sort();
+  const allBlockNumbers = [...new Set(schedules.map((s) => s.block?.block_number).filter(Boolean))].sort((a, b) => a - b);
+
+  // ---- Group by site -> { physicians, departments (dept -> physicians), rows } ----
   const sites = [];
-  schedules.forEach((s) => {
+  filtered.forEach((s) => {
     const siteName = s.site?.name || 'Unknown site';
     let site = sites.find((x) => x.name === siteName);
     if (!site) {
@@ -201,81 +216,173 @@ function ScheduleSummaryReport() {
     });
   });
 
+  // ---- Group by block -> { block, rows sorted by site } ----
+  const blocks = [];
+  filtered.forEach((s) => {
+    const num = s.block?.block_number || 0;
+    let entry = blocks.find((b) => b.number === num);
+    if (!entry) {
+      entry = { number: num, name: s.block?.name, startDate: s.startDate, endDate: s.endDate, rows: [] };
+      blocks.push(entry);
+    }
+    entry.rows.push(s);
+  });
+  blocks.sort((a, b) => a.number - b.number);
+  blocks.forEach((b) => {
+    b.rows.sort((x, y) => {
+      const siteDiff = (x.site?.name || '').localeCompare(y.site?.name || '');
+      if (siteDiff !== 0) return siteDiff;
+      return (x.physician?.full_name || '').localeCompare(y.physician?.full_name || '');
+    });
+  });
+
   return (
     <div>
-      {/* 1. Physicians per facility (network overview) */}
-      <h5 className="report-section-title">Physician Assignments per Facility</h5>
-      <table className="table table-sm table-bordered align-middle">
-        <thead className="table-light">
-          <tr>
-            <th>Facility</th>
-            <th className="text-center">Physicians</th>
-            <th className="text-center">Rotations</th>
-            <th>Assigned Physicians</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sites.map((site) => (
-            <tr key={site.name}>
-              <td className="fw-semibold">{site.name}</td>
-              <td className="text-center">{site.physicians.length}</td>
-              <td className="text-center">{site.rows.length}</td>
-              <td className="small">{[...site.physicians].sort().join(', ')}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* View + filter controls: on screen only, not on the printed page */}
+      <div className="no-print d-flex align-items-center flex-wrap gap-2 mb-3">
+        <div className="btn-group" role="group">
+          <button
+            type="button"
+            className={`btn btn-sm ${mode === 'site' ? 'btn-primary' : 'btn-outline-primary'}`}
+            onClick={() => setMode('site')}
+          >
+            By Site
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${mode === 'block' ? 'btn-primary' : 'btn-outline-primary'}`}
+            onClick={() => setMode('block')}
+          >
+            By Block
+          </button>
+        </div>
+        <select className="form-select form-select-sm" style={{ maxWidth: 260 }} value={siteFilter} onChange={(e) => setSiteFilter(e.target.value)}>
+          <option value="">All sites</option>
+          {allSiteNames.map((name) => <option key={name} value={name}>{name}</option>)}
+        </select>
+        <select className="form-select form-select-sm" style={{ maxWidth: 160 }} value={blockFilter} onChange={(e) => setBlockFilter(e.target.value)}>
+          <option value="">All blocks</option>
+          {allBlockNumbers.map((n) => <option key={n} value={String(n)}>Block {n}</option>)}
+        </select>
+        {(siteFilter || blockFilter) && (
+          <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => { setSiteFilter(''); setBlockFilter(''); }}>
+            Clear filters
+          </button>
+        )}
+      </div>
 
-      {/* 2 + 3. Per site: department breakdown, then the block schedule */}
-      {sites.map((site) => (
-        <div key={site.name} style={{ pageBreakInside: 'avoid' }}>
-          <h5 className="report-section-title">{site.name}</h5>
-
-          <h6 className="mt-2 mb-2">Physicians per Department</h6>
+      {filtered.length === 0 ? (
+        <p className="text-muted">No schedules match the selected filters.</p>
+      ) : (
+        <>
+          {/* Network overview: physician assignments per facility (both views) */}
+          <h5 className="report-section-title">Physician Assignments per Facility</h5>
           <table className="table table-sm table-bordered align-middle">
             <thead className="table-light">
               <tr>
-                <th>Department</th>
+                <th>Facility</th>
                 <th className="text-center">Physicians</th>
+                <th className="text-center">Rotations</th>
                 <th>Assigned Physicians</th>
               </tr>
             </thead>
             <tbody>
-              {site.departments.map((dept) => (
-                <tr key={dept.label}>
-                  <td>{dept.label}</td>
-                  <td className="text-center">{dept.physicians.length}</td>
-                  <td className="small">{[...dept.physicians].sort().join(', ')}</td>
+              {sites.map((site) => (
+                <tr key={site.name}>
+                  <td className="fw-semibold">{site.name}</td>
+                  <td className="text-center">{site.physicians.length}</td>
+                  <td className="text-center">{site.rows.length}</td>
+                  <td className="small">{[...site.physicians].sort().join(', ')}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          <h6 className="mt-3 mb-2">Block Schedule</h6>
-          <table className="table table-sm table-striped table-bordered align-middle">
-            <thead className="table-light">
-              <tr>
-                <th>Block #</th>
-                <th>Date</th>
-                <th>Department</th>
-                <th>Physician</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {site.rows.map((s) => (
-                <tr key={s.id}>
-                  <td>Block {s.block?.block_number}</td>
-                  <td>{s.startDate} to {s.endDate}</td>
-                  <td>{s.department?.code}</td>
-                  <td>{s.physician?.full_name}</td>
-                  <td>{s.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ))}
+          {mode === 'site' ? (
+            /* -------- View 1: By Site -------- */
+            sites.map((site) => (
+              <div key={site.name} style={{ pageBreakInside: 'avoid' }}>
+                <h5 className="report-section-title">{site.name}</h5>
+
+                <h6 className="mt-2 mb-2">Physicians per Department</h6>
+                <table className="table table-sm table-bordered align-middle">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Department</th>
+                      <th className="text-center">Physicians</th>
+                      <th>Assigned Physicians</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {site.departments.map((dept) => (
+                      <tr key={dept.label}>
+                        <td>{dept.label}</td>
+                        <td className="text-center">{dept.physicians.length}</td>
+                        <td className="small">{[...dept.physicians].sort().join(', ')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <h6 className="mt-3 mb-2">Block Schedule</h6>
+                <table className="table table-sm table-striped table-bordered align-middle">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Block #</th>
+                      <th>Date</th>
+                      <th>Department</th>
+                      <th>Physician</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {site.rows.map((s) => (
+                      <tr key={s.id}>
+                        <td>Block {s.block?.block_number}</td>
+                        <td>{s.startDate} to {s.endDate}</td>
+                        <td>{s.department?.code}</td>
+                        <td>{s.physician?.full_name}</td>
+                        <td>{s.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))
+          ) : (
+            /* -------- View 2: By Block -------- */
+            blocks.map((block) => (
+              <div key={block.number} style={{ pageBreakInside: 'avoid' }}>
+                <h5 className="report-section-title">
+                  Block {block.number}{block.name && block.name !== `Block ${block.number}` ? ` — ${block.name}` : ''}
+                </h5>
+                <table className="table table-sm table-striped table-bordered align-middle">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Site</th>
+                      <th>Department</th>
+                      <th>Physician</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.rows.map((s) => (
+                      <tr key={s.id}>
+                        <td>{s.site?.name}</td>
+                        <td>{s.department?.code} ({s.department?.name})</td>
+                        <td>{s.physician?.full_name}</td>
+                        <td>{s.startDate} to {s.endDate}</td>
+                        <td>{s.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))
+          )}
+        </>
+      )}
     </div>
   );
 }
