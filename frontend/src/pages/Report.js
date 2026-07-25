@@ -263,8 +263,8 @@ function ScheduleSummaryReport() {
           -> Block, By Physician -> Physician); the other two are disabled
           and cleared on view switch so a hidden stale filter can never
           constrain the report. */}
-      <div className="no-print d-flex align-items-center flex-wrap gap-2 mb-3">
-        <div className="btn-group" role="group">
+      <div className="no-print d-flex align-items-center flex-nowrap gap-2 mb-3">
+        <div className="btn-group flex-shrink-0" role="group">
           <button
             type="button"
             className={`btn btn-sm ${mode === 'site' ? 'btn-primary' : 'btn-outline-primary'}`}
@@ -289,7 +289,7 @@ function ScheduleSummaryReport() {
         </div>
         <select
           className="form-select form-select-sm"
-          style={{ maxWidth: 260 }}
+          style={{ flex: '1 1 0', minWidth: 0 }}
           value={siteFilter}
           onChange={(e) => setSiteFilter(e.target.value)}
           disabled={mode !== 'site'}
@@ -300,7 +300,7 @@ function ScheduleSummaryReport() {
         </select>
         <select
           className="form-select form-select-sm"
-          style={{ maxWidth: 160 }}
+          style={{ flex: '1 1 0', minWidth: 0 }}
           value={blockFilter}
           onChange={(e) => setBlockFilter(e.target.value)}
           disabled={mode !== 'block'}
@@ -311,7 +311,7 @@ function ScheduleSummaryReport() {
         </select>
         <select
           className="form-select form-select-sm"
-          style={{ maxWidth: 240 }}
+          style={{ flex: '1 1 0', minWidth: 0 }}
           value={physicianFilter}
           onChange={(e) => setPhysicianFilter(e.target.value)}
           disabled={mode !== 'physician'}
@@ -321,8 +321,13 @@ function ScheduleSummaryReport() {
           {allPhysicianNames.map((name) => <option key={name} value={name}>{name}</option>)}
         </select>
         {(siteFilter || blockFilter || physicianFilter) && (
-          <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => { setSiteFilter(''); setBlockFilter(''); setPhysicianFilter(''); }}>
-            Clear filter
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary flex-shrink-0"
+            title="Clear filter"
+            onClick={() => { setSiteFilter(''); setBlockFilter(''); setPhysicianFilter(''); }}
+          >
+            ✕
           </button>
         )}
       </div>
