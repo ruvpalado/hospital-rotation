@@ -60,6 +60,19 @@ exports.createSchedule = async (req, res) => {
     const resolvedName = physician ? physician.full_name : (physicianName || '').trim();
     if (!resolvedName) return res.status(400).json({ error: 'physicianName is required' });
 
+    // Block Assignment Control: one schedule per physician per block. The
+    // frontend disables already-assigned blocks in the dropdown, but this is
+    // enforced here too so a direct API call can't create a conflict.
+    const conflict = await RotationAssignment.findOne({
+      where: {
+        block_id: blockId,
+        ...(physician ? { physician_id: physician.id } : { physician_name: resolvedName }),
+      },
+    });
+    if (conflict) {
+      return res.status(409).json({ error: `${resolvedName} already has a schedule assigned for this block.` });
+    }
+
     const assignment = await RotationAssignment.create({
       physician_id: physician ? physician.id : null,
       physician_name: resolvedName,
@@ -149,6 +162,19 @@ exports.updateSchedule = async (req, res) => {
     }
     const resolvedName = physician ? physician.full_name : (physicianName || '').trim();
     if (!resolvedName) return res.status(400).json({ error: 'physicianName is required' });
+
+    // Same one-schedule-per-physician-per-block rule as createSchedule,
+    // excluding the assignment being edited itself.
+    const conflict = await RotationAssignment.findOne({
+      where: {
+        id: { [Op.ne]: assignment.id },
+        block_id: blockId,
+        ...(physician ? { physician_id: physician.id } : { physician_name: resolvedName }),
+      },
+    });
+    if (conflict) {
+      return res.status(409).json({ error: `${resolvedName} already has a schedule assigned for this block.` });
+    }
 
     const startChanged = String(assignment.start_date) !== String(startDate);
     const blockChanged = Number(assignment.block_id) !== Number(blockId);

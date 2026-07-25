@@ -24,6 +24,10 @@ export default function EditScheduleModal({ schedule, onClose, onSaved }) {
   const [roster, setRoster] = useState([]);
   const [siteDepartments, setSiteDepartments] = useState([]);
   const [blocks, setBlocks] = useState([]);
+  // All existing assignments, used to disable blocks the chosen physician
+  // already has a schedule for (Block Assignment Control) -- excluding the
+  // schedule being edited itself, whose own block must stay selectable.
+  const [existingSchedules, setExistingSchedules] = useState([]);
 
   const [physicianId, setPhysicianId] = useState(schedule.physician?.id || '');
   const [physicianInput, setPhysicianInput] = useState('');
@@ -64,8 +68,28 @@ export default function EditScheduleModal({ schedule, onClose, onSaved }) {
       if (current) setSiteDepartmentId(String(current.id));
     });
     api.get('/blocks').then((res) => setBlocks(res.data));
+    api.get('/schedules').then((res) => setExistingSchedules(res.data)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Blocks already assigned to this physician (other than this very
+  // schedule) are disabled -- matches the backend's conflict rule.
+  const typedName = physicianInput.trim().toLowerCase();
+  const assignedBlockIds = new Set(
+    existingSchedules
+      .filter((s) => s.id !== schedule.id)
+      .filter((s) => {
+        if (physicianId) return s.physician?.id === Number(physicianId);
+        return typedName && (s.physician?.full_name || '').toLowerCase() === typedName;
+      })
+      .map((s) => s.block?.id)
+      .filter(Boolean)
+  );
+
+  useEffect(() => {
+    if (blockId && assignedBlockIds.has(Number(blockId))) setBlockId('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [physicianId, physicianInput]);
 
   const sites = [];
   siteDepartments.forEach((sd) => {
@@ -210,11 +234,17 @@ export default function EditScheduleModal({ schedule, onClose, onSaved }) {
                 <select className="form-select" value={blockId} onChange={handleBlockChange} required>
                   <option value="">-- select block --</option>
                   {blocks.map((b) => (
-                    <option key={b.id} value={b.id}>
+                    <option key={b.id} value={b.id} disabled={assignedBlockIds.has(b.id)}>
                       Block {b.block_number}: {b.name} ({b.start_date} to {b.end_date})
+                      {assignedBlockIds.has(b.id) ? ' — already assigned' : ''}
                     </option>
                   ))}
                 </select>
+                {assignedBlockIds.size > 0 && (
+                  <div className="form-text">
+                    Grayed-out blocks already have a schedule for this physician and can't be selected again.
+                  </div>
+                )}
               </div>
 
               <div className="row">
