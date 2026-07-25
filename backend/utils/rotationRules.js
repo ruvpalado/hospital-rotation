@@ -25,9 +25,16 @@ function countAttendedWeeks(weeks) {
 function deriveAssignmentStatus(weeks) {
   const total = weeks.length;
   const attended = countAttendedWeeks(weeks);
-  const anyPending = weeks.some((w) => w.status === 'pending');
+  const pendingCount = weeks.filter((w) => w.status === 'pending').length;
   if (total === 0) return 'scheduled';
-  if (anyPending && attended < MIN_WEEKS_FOR_COMPLETION) return 'in_progress';
+  // Nothing recorded yet -- the rotation is still just scheduled.
+  if (pendingCount === total) return 'scheduled';
+  // The final verdict (completed/incomplete) is only reached once EVERY
+  // week's status has been recorded. While any week is still 'pending',
+  // the rotation stays 'in_progress' -- even if it already has enough
+  // attended weeks to qualify -- so the status never flips early and the
+  // completed-lock on weekly editing can't engage before all weeks are in.
+  if (pendingCount > 0) return 'in_progress';
   return attended >= MIN_WEEKS_FOR_COMPLETION ? 'completed' : 'incomplete';
 }
 
