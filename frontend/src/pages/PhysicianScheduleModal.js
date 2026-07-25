@@ -28,8 +28,6 @@ export default function PhysicianScheduleModal({
   onClose,
 }) {
   const [expandedId, setExpandedId] = useState(null);
-  const [addingBlock, setAddingBlock] = useState(false);
-  const [addError, setAddError] = useState('');
 
   // Scope this modal's aggressive print CSS (which hides everything except
   // the schedule sheet) to only apply while the modal is actually open --
@@ -59,23 +57,11 @@ export default function PhysicianScheduleModal({
 
   const columnCount = canEditSchedule ? 7 : 6;
 
-  // Highest block this physician currently has, and whether the curriculum
-  // has a block beyond it -- drives the "+ Add Next Block" button.
+  // Highest block this physician currently has -- the "+ Add Block" button
+  // opens the Add Block form for the next block (highest + 1).
   const highestBlock = rows.reduce((max, s) => Math.max(max, s.block?.block_number || 0), 0);
   const nextBlockNumber = highestBlock + 1;
   const physicianRef = { id: rows[0]?.physician?.id || null, name: physicianName };
-
-  const handleAddNext = async () => {
-    setAddError('');
-    setAddingBlock(true);
-    try {
-      await onAddNextBlock(physicianRef);
-    } catch (err) {
-      setAddError(err.response?.data?.error || 'Failed to add the next block.');
-    } finally {
-      setAddingBlock(false);
-    }
-  };
 
   return (
     <div className="modal d-block physician-schedule-modal" tabIndex={-1} style={{ background: 'rgba(0,0,0,0.5)' }}>
@@ -182,7 +168,6 @@ export default function PhysicianScheduleModal({
                 </table>
               )}
             </div>
-            {addError && <div className="alert alert-danger py-2 mt-2 d-print-none">{addError}</div>}
           </div>
           <div className="modal-footer d-print-none justify-content-between">
             <div>
@@ -190,13 +175,13 @@ export default function PhysicianScheduleModal({
                 <button
                   type="button"
                   className="btn btn-outline-success"
-                  onClick={handleAddNext}
-                  disabled={addingBlock || nextBlockNumber > 13}
+                  onClick={() => onAddNextBlock(physicianRef, nextBlockNumber)}
+                  disabled={nextBlockNumber > 13}
                   title={nextBlockNumber > 13
                     ? 'The curriculum ends at Block 13.'
-                    : `Creates Block ${nextBlockNumber} for ${physicianName} at the same site/department.`}
+                    : `Add Block ${nextBlockNumber} for ${physicianName} (choose its site/department).`}
                 >
-                  {addingBlock ? 'Adding...' : `+ Add Block ${nextBlockNumber <= 13 ? nextBlockNumber : ''}`.trim()}
+                  {`+ Add Block ${nextBlockNumber <= 13 ? nextBlockNumber : ''}`.trim()}
                 </button>
               )}
             </div>

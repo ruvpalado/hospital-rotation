@@ -7,6 +7,7 @@ import { useColorMaps, colorFor } from '../utils/colorCoding';
 import AddScheduleModal from './AddScheduleModal';
 import EditScheduleModal from './EditScheduleModal';
 import PhysicianScheduleModal from './PhysicianScheduleModal';
+import AddBlockModal from './AddBlockModal';
 
 /**
  * Schedules page, restructured around physician selection:
@@ -53,6 +54,8 @@ export default function ScheduleViewer() {
   const [viewingPhysician, setViewingPhysician] = useState(null);
   // Id of a just-created "next block" row, briefly highlighted in the modal.
   const [highlightBlockId, setHighlightBlockId] = useState(null);
+  // When set, the Add Block form is open: { physicianId, physicianName, nextBlockNumber }.
+  const [addingBlockFor, setAddingBlockFor] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -92,17 +95,21 @@ export default function ScheduleViewer() {
     load();
   };
 
-  // "+ Add Next Block": create the next sequential block for the physician,
-  // reload so the new row appears, then briefly highlight it. Errors are
-  // rethrown so the modal can surface them.
-  const handleAddNextBlock = async (physician) => {
-    const res = await api.post('/schedules/add-next-block', {
-      physicianId: physician.id,
-      physicianName: physician.name,
-    });
+  // "+ Add Block": open the Add Block form (physician + block locked, site
+  // and department editable) rather than creating immediately.
+  const handleAddNextBlock = (physician, nextBlockNumber) => {
+    setAddingBlockFor({ physicianId: physician.id, physicianName: physician.name, nextBlockNumber });
+  };
+
+  // After the Add Block form creates the schedule: refresh, highlight the
+  // new row, and close the form.
+  const handleBlockCreated = async (created) => {
+    setAddingBlockFor(null);
     await load();
-    setHighlightBlockId(res.data.id);
-    setTimeout(() => setHighlightBlockId(null), 4000);
+    if (created?.id) {
+      setHighlightBlockId(created.id);
+      setTimeout(() => setHighlightBlockId(null), 4000);
+    }
   };
 
   const runSearch = (e) => {
@@ -213,6 +220,15 @@ export default function ScheduleViewer() {
           schedule={editingSchedule}
           onClose={() => setEditingSchedule(null)}
           onSaved={handleScheduleSaved}
+        />
+      )}
+      {addingBlockFor && (
+        <AddBlockModal
+          physicianId={addingBlockFor.physicianId}
+          physicianName={addingBlockFor.physicianName}
+          nextBlockNumber={addingBlockFor.nextBlockNumber}
+          onClose={() => setAddingBlockFor(null)}
+          onCreated={handleBlockCreated}
         />
       )}
 
