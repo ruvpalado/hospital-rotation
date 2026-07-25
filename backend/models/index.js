@@ -12,6 +12,7 @@ const RotationWeek = require('./RotationWeek')(sequelize, DataTypes);
 const ChangeRequest = require('./ChangeRequest')(sequelize, DataTypes);
 const Notification = require('./Notification')(sequelize, DataTypes);
 const AuditLog = require('./AuditLog')(sequelize, DataTypes);
+const PhysicianRoster = require('./PhysicianRoster')(sequelize, DataTypes);
 
 // ---- Associations ----
 Role.hasMany(User, { foreignKey: 'role_id' });
@@ -68,4 +69,5 @@ module.exports = {
   ChangeRequest,
   Notification,
   AuditLog,
+  PhysicianRoster,
 };

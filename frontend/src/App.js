@@ -13,6 +13,7 @@ import AuditLog from './pages/AuditLog';
 import Report from './pages/Report';
 import UserManagement from './pages/UserManagement';
 import PendingApprovals from './pages/PendingApprovals';
+import PhysicianList from './pages/PhysicianList';
 
 function Layout({ children }) {
   return (
@@ -53,6 +54,9 @@ export default function App() {
           } />
           <Route path="/pending-approvals" element={
             <RoleBasedRoute requireEmail="ruvpalado@gmail.com"><Layout><PendingApprovals /></Layout></RoleBasedRoute>
+          } />
+          <Route path="/physician-list" element={
+            <RoleBasedRoute requireEmail="ruvpalado@gmail.com"><Layout><PhysicianList /></Layout></RoleBasedRoute>
           } />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

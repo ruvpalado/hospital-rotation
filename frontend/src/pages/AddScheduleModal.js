@@ -19,6 +19,7 @@ import api from '../api/axios';
  */
 export default function AddScheduleModal({ onClose, onCreated }) {
   const [physicians, setPhysicians] = useState([]);
+  const [roster, setRoster] = useState([]);
   const [siteDepartments, setSiteDepartments] = useState([]);
   const [blocks, setBlocks] = useState([]);
 
@@ -35,6 +36,11 @@ export default function AddScheduleModal({ onClose, onCreated }) {
 
   useEffect(() => {
     api.get('/users', { params: { role: 'physician' } }).then((res) => setPhysicians(res.data));
+    // The Physician List module's name-only roster (managed by the developer
+    // account at /physician-list; CSV/Excel upload or manual add). Adds
+    // autocomplete suggestions only -- picking one behaves exactly like a
+    // free-typed name (physicianId stays unset, physician_name is stored).
+    api.get('/physician-roster').then((res) => setRoster(res.data)).catch(() => {});
     api.get('/sites/site-departments').then((res) => setSiteDepartments(res.data));
     api.get('/blocks').then((res) => setBlocks(res.data));
   }, []);
@@ -137,8 +143,15 @@ export default function AddScheduleModal({ onClose, onCreated }) {
                 />
                 <datalist id="physician-suggestions">
                   {physicians.map((p) => (
-                    <option key={p.id} value={physicianLabel(p)} />
+                    <option key={`account-${p.id}`} value={physicianLabel(p)} />
                   ))}
+                  {roster
+                    // Skip roster names that duplicate a registered account's
+                    // name -- the account entry above (with email) wins.
+                    .filter((r) => !physicians.some((p) => p.fullName.toLowerCase() === r.fullName.toLowerCase()))
+                    .map((r) => (
+                      <option key={`roster-${r.id}`} value={r.fullName} />
+                    ))}
                 </datalist>
                 {physicianInput && !physicianId && (
                   <div className="form-text">

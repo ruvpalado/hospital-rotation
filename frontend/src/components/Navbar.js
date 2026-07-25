@@ -36,6 +36,9 @@ export default function Navbar() {
           {user.email === 'ruvpalado@gmail.com' && (
             <li className="nav-item"><Link className="nav-link" to="/pending-approvals">Pending Approvals</Link></li>
           )}
+          {user.email === 'ruvpalado@gmail.com' && (
+            <li className="nav-item"><Link className="nav-link" to="/physician-list">Physician List</Link></li>
+          )}
           <li className="nav-item"><Link className="nav-link" to="/report">Generate Report</Link></li>
         </ul>
         <div className="d-flex align-items-center gap-2">
