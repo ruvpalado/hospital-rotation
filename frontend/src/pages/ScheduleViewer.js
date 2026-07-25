@@ -51,6 +51,8 @@ export default function ScheduleViewer() {
   const canEditSchedule = user?.role === 'scheduler' || user?.role === 'admin' || user?.role === 'developer';
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [viewingPhysician, setViewingPhysician] = useState(null);
+  // Id of a just-created "next block" row, briefly highlighted in the modal.
+  const [highlightBlockId, setHighlightBlockId] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -88,6 +90,19 @@ export default function ScheduleViewer() {
   const updateWeek = async (weekId, status) => {
     await api.patch(`/schedules/weeks/${weekId}`, { status });
     load();
+  };
+
+  // "+ Add Next Block": create the next sequential block for the physician,
+  // reload so the new row appears, then briefly highlight it. Errors are
+  // rethrown so the modal can surface them.
+  const handleAddNextBlock = async (physician) => {
+    const res = await api.post('/schedules/add-next-block', {
+      physicianId: physician.id,
+      physicianName: physician.name,
+    });
+    await load();
+    setHighlightBlockId(res.data.id);
+    setTimeout(() => setHighlightBlockId(null), 4000);
   };
 
   const runSearch = (e) => {
@@ -188,6 +203,8 @@ export default function ScheduleViewer() {
           canEditSchedule={canEditSchedule}
           onEditSchedule={(s) => setEditingSchedule(s)}
           onUpdateWeek={updateWeek}
+          onAddNextBlock={handleAddNextBlock}
+          highlightBlockId={highlightBlockId}
           onClose={() => setViewingPhysician(null)}
         />
       )}

@@ -14,6 +14,9 @@ router.post('/', authenticate, requireRole('scheduler', 'admin'), withAudit('cre
 // Edit an existing rotation schedule (physician, site/department, block,
 // dates) -- same audience as create.
 router.put('/:id', authenticate, requireRole('scheduler', 'admin'), withAudit('edit', 'schedule'), scheduleController.updateSchedule);
+// "+ Add Next Block": auto-create the next sequential block for a physician,
+// same audience as create/edit.
+router.post('/add-next-block', authenticate, requireRole('scheduler', 'admin'), withAudit('create', 'schedule'), scheduleController.addNextBlock);
 // The Master Scheduler may change a week's attendance status (attended /
 // maternity_leave / annual_leave / absent) -- dept heads can view schedules
 // but not edit attendance directly. Admin included for the same reason as
