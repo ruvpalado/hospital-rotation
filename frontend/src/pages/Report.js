@@ -128,12 +128,9 @@ export default function Report() {
           borderRadius: 4,
         }}
       >
-        <h3 className="mb-0">
+        <h3 className="mb-4">
           OBGYN Master Rotation — {reportView === 'summary' ? 'Schedule Summary' : roleReportTitle(user?.role)}
         </h3>
-        <p className="text-muted">
-          Generated {generatedAt} for {user?.fullName} ({user?.roleLabel})
-        </p>
 
         {reportView === 'summary' ? (
           <ScheduleSummaryReport />
@@ -147,6 +144,12 @@ export default function Report() {
             {user?.role === 'physician' && <PhysicianReport data={physicianKpis} />}
           </>
         )}
+
+        {/* Report footer: generation timestamp + author, kept at the bottom
+            for a cleaner layout across all printed reports. */}
+        <p className="text-muted small mt-4 pt-3 border-top mb-0">
+          Generated {generatedAt} by {user?.fullName} ({user?.roleLabel})
+        </p>
       </div>
     </div>
   );
