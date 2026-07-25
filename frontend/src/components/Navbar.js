@@ -70,7 +70,7 @@ export default function Navbar() {
       childPaths: ['/approvals', '/pending-approvals'],
       items: [
         { to: '/approvals', icon: '🏥', label: t('departmentApproval'), show: isAdmin || user.role === 'dept_head' },
-        { to: '/pending-approvals', icon: '⏳', label: 'User Approval', show: isDeveloper },
+        { to: '/pending-approvals', icon: '⏳', label: 'User Approval', show: isAdmin },
       ],
     },
     {

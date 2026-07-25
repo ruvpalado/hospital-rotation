@@ -1,7 +1,6 @@
 const router = require('express').Router();
 const authenticate = require('../middleware/auth');
 const requireRole = require('../middleware/roles');
-const { requireDeveloperEmail } = requireRole;
 const withAudit = require('../middleware/auditLogger');
 const userController = require('../controllers/userController');
 
@@ -34,13 +33,15 @@ router.post('/remove-demo-accounts', authenticate, requireRole('admin'), userCon
 // users table (see Account Creation Policy). Idempotent.
 router.post('/sync-approval-column', authenticate, requireRole('admin'), userController.syncApprovalColumn);
 
-// Account Creation Policy (temporarily tightened): approval rights are
-// restricted to the developer account (ruvpalado@gmail.com) only, for every
-// pending request regardless of the requested role -- not just admin-role
-// ones. The other admin account can no longer view or act on this list until
-// this restriction is lifted.
-router.get('/pending', authenticate, requireDeveloperEmail, userController.listPending);
-router.post('/:id/approve', authenticate, requireDeveloperEmail, withAudit('edit', 'user'), userController.approveUser);
-router.post('/:id/reject', authenticate, requireDeveloperEmail, withAudit('edit', 'user'), userController.rejectUser);
+// Account Creation Policy:
+//  - Any admin can view the pending list and approve/reject NON-admin
+//    account requests.
+//  - Admin-role account requests are additionally gated to the developer
+//    account (ruvpalado@gmail.com) inside approveUser/rejectUser, so those
+//    are effectively routed to the developer for final confirmation even
+//    though the route itself allows any admin.
+router.get('/pending', authenticate, requireRole('admin'), userController.listPending);
+router.post('/:id/approve', authenticate, requireRole('admin'), withAudit('edit', 'user'), userController.approveUser);
+router.post('/:id/reject', authenticate, requireRole('admin'), withAudit('edit', 'user'), userController.rejectUser);
 
 module.exports = router;

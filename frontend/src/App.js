@@ -53,7 +53,7 @@ export default function App() {
             <RoleBasedRoute allowedRoles={['admin']}><Layout><UserManagement /></Layout></RoleBasedRoute>
           } />
           <Route path="/pending-approvals" element={
-            <RoleBasedRoute requireEmail="ruvpalado@gmail.com"><Layout><PendingApprovals /></Layout></RoleBasedRoute>
+            <RoleBasedRoute allowedRoles={['admin']}><Layout><PendingApprovals /></Layout></RoleBasedRoute>
           } />
           <Route path="/physician-list" element={
             <RoleBasedRoute requireEmail="ruvpalado@gmail.com"><Layout><PhysicianList /></Layout></RoleBasedRoute>
