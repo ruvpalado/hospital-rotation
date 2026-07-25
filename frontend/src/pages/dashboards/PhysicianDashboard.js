@@ -29,10 +29,38 @@ export default function PhysicianDashboard() {
         <div className="col-md-6">
           <div className="card shadow-sm p-3">
             <h6>{t('individualRotationCompletion')}</h6>
-            <Doughnut data={{
-              labels: ['Completed', 'Remaining'],
-              datasets: [{ data: [irc.completed, Math.max(0, irc.totalRequired - irc.completed)], backgroundColor: ['#7FB37F', '#e0e0e0'] }],
-            }} />
+            <Doughnut
+              data={{
+                labels: ['Completed', 'Remaining'],
+                datasets: [{ data: [irc.completed, Math.max(0, irc.totalRequired - irc.completed)], backgroundColor: ['#7FB37F', '#e0e0e0'] }],
+              }}
+              options={{
+                plugins: {
+                  legend: { position: 'top' },
+                  tooltip: {
+                    callbacks: {
+                      // Slice value line, then each rotation's Block / Site / Department.
+                      label: (ctx) => `${ctx.label}: ${ctx.parsed}`,
+                      afterLabel: (ctx) => {
+                        if (ctx.label === 'Completed') {
+                          if (!irc.completedList?.length) return 'No completed rotations yet.';
+                          return irc.completedList.map(
+                            (r) => `Block ${r.blockNumber} — ${r.site || '—'} / ${r.department || '—'}`
+                          );
+                        }
+                        // Remaining: assigned-but-unfinished rotations + unscheduled blocks.
+                        const lines = (irc.remainingList || []).map(
+                          (r) => `Block ${r.blockNumber} — ${r.site || '—'} / ${r.department || '—'} (in progress)`
+                        );
+                        if (irc.unscheduledCount > 0) lines.push(`${irc.unscheduledCount} block(s) not scheduled yet`);
+                        return lines.length ? lines : 'Nothing remaining.';
+                      },
+                    },
+                  },
+                },
+              }}
+            />
+            <p className="text-muted small mb-0 mt-2">Hover a slice to see the site and department for each rotation.</p>
           </div>
         </div>
         <div className="col-md-6">

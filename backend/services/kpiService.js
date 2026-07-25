@@ -162,12 +162,41 @@ async function conflictCount(blockId, siteId) {
   return { conflicts, conflictDetails };
 }
 
-/** 7. Individual Rotation Completion = completed blocks / 13 * 100 (per physician) */
+/** 7. Individual Rotation Completion = completed blocks / 13 * 100 (per physician).
+ *  Also returns per-rotation site/department detail for the dashboard chart's
+ *  tooltip/legend, split into completed vs. remaining:
+ *   - completedList: rotations the physician has finished (block, site, dept).
+ *   - remainingList: assigned-but-not-yet-finished rotations (block, site, dept).
+ *   - unscheduledCount: curriculum blocks with no assignment yet (13 - assigned),
+ *     which are also "remaining" but have no site/department to show.
+ */
 async function individualRotationCompletion(physicianId) {
   const assignments = await getAssignmentsWithWeeks({ physician_id: physicianId });
-  const completed = assignments.filter((a) => isRotationComplete(a.weeks)).length;
+
+  const toDetail = (a) => ({
+    blockNumber: a.Block?.block_number,
+    site: a.SiteDepartment?.Site?.name || null,
+    siteCode: a.SiteDepartment?.Site?.short_code || null,
+    department: a.SiteDepartment?.Department?.code || null,
+    departmentName: a.SiteDepartment?.Department?.name || null,
+  });
+
+  const completedAssignments = assignments.filter((a) => isRotationComplete(a.weeks));
+  const remainingAssignments = assignments.filter((a) => !isRotationComplete(a.weeks));
+
+  const completed = completedAssignments.length;
+  const unscheduledCount = Math.max(TOTAL_CURRICULUM_BLOCKS - assignments.length, 0);
   const pct = round((completed / TOTAL_CURRICULUM_BLOCKS) * 100);
-  return { completed, totalRequired: TOTAL_CURRICULUM_BLOCKS, pct };
+
+  const byBlock = (x, y) => (x.blockNumber || 0) - (y.blockNumber || 0);
+  return {
+    completed,
+    totalRequired: TOTAL_CURRICULUM_BLOCKS,
+    pct,
+    completedList: completedAssignments.map(toDetail).sort(byBlock),
+    remainingList: remainingAssignments.map(toDetail).sort(byBlock),
+    unscheduledCount,
+  };
 }
 
 /**

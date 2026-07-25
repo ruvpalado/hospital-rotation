@@ -956,6 +956,31 @@ function PhysicianReport({ data }) {
           <h6 className="mb-2">Rotation Completion</h6>
           <ChartBox><Doughnut data={ircData} options={doughnutOptions} /></ChartBox>
           <div className="text-muted small">{irc.completed}/{irc.totalRequired} blocks ({irc.pct}%)</div>
+          {(irc.completedList?.length > 0 || irc.remainingList?.length > 0) && (
+            <div className="small text-start mt-2">
+              {irc.completedList?.length > 0 && (
+                <div>
+                  <strong>Completed:</strong>
+                  <ul className="mb-1 ps-3">
+                    {irc.completedList.map((r) => (
+                      <li key={`c${r.blockNumber}`}>Block {r.blockNumber} — {r.site || '—'} / {r.department || '—'}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {(irc.remainingList?.length > 0 || irc.unscheduledCount > 0) && (
+                <div>
+                  <strong>Remaining:</strong>
+                  <ul className="mb-0 ps-3">
+                    {irc.remainingList?.map((r) => (
+                      <li key={`r${r.blockNumber}`}>Block {r.blockNumber} — {r.site || '—'} / {r.department || '—'} (in progress)</li>
+                    ))}
+                    {irc.unscheduledCount > 0 && <li>{irc.unscheduledCount} block(s) not scheduled yet</li>}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="col-md-4 text-center">
           <h6 className="mb-2">Specialty Exposure</h6>
