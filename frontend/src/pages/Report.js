@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Chart as ChartJS } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
+import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useKpiOverview, usePhysicianKpis } from './dashboards/useKpis';
 import './dashboards/ChartSetup';
@@ -60,6 +61,10 @@ export default function Report() {
   const { user } = useAuth();
   const { data: overview, loading: overviewLoading } = useKpiOverview();
   const physicianKpis = usePhysicianKpis(user?.role === 'physician' ? user.id : null);
+  // 'kpi' = the role-based KPI report (default); 'summary' = the Schedule
+  // Summary report (physician assignments grouped by facility/department
+  // and block schedules organized by site).
+  const [reportView, setReportView] = useState('kpi');
 
   useEffect(() => {
     const resizeAllCharts = () => {
@@ -97,11 +102,19 @@ export default function Report() {
       `}</style>
 
       <div
-        className="no-print d-flex justify-content-between align-items-center"
+        className="no-print d-flex justify-content-between align-items-center flex-wrap gap-2"
         style={{ maxWidth: 900, margin: '0 auto 16px auto' }}
       >
         <h4 className="mb-0">Generate Report</h4>
-        <button className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
+        <div className="d-flex gap-2">
+          <button
+            className={`btn ${reportView === 'kpi' ? 'btn-outline-secondary' : 'btn-outline-primary'}`}
+            onClick={() => setReportView(reportView === 'kpi' ? 'summary' : 'kpi')}
+          >
+            {reportView === 'kpi' ? 'Schedule Summary' : 'Back to KPI Report'}
+          </button>
+          <button className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
+        </div>
       </div>
 
       <div
@@ -115,18 +128,154 @@ export default function Report() {
           borderRadius: 4,
         }}
       >
-        <h3 className="mb-0">OBGYN Master Rotation — {roleReportTitle(user?.role)}</h3>
+        <h3 className="mb-0">
+          OBGYN Master Rotation — {reportView === 'summary' ? 'Schedule Summary' : roleReportTitle(user?.role)}
+        </h3>
         <p className="text-muted">
           Generated {generatedAt} for {user?.fullName} ({user?.roleLabel})
         </p>
 
-        {user?.role === 'admin' && <AdminReport data={overview} />}
-        {user?.role === 'program_manager' && <AdminReport data={overview} />}
-        {user?.role === 'hospital_admin' && <HospitalAdminReport data={overview} />}
-        {user?.role === 'scheduler' && <SchedulerReport data={overview} />}
-        {user?.role === 'dept_head' && <DeptHeadReport data={overview} />}
-        {user?.role === 'physician' && <PhysicianReport data={physicianKpis} />}
+        {reportView === 'summary' ? (
+          <ScheduleSummaryReport />
+        ) : (
+          <>
+            {user?.role === 'admin' && <AdminReport data={overview} />}
+            {user?.role === 'program_manager' && <AdminReport data={overview} />}
+            {user?.role === 'hospital_admin' && <HospitalAdminReport data={overview} />}
+            {user?.role === 'scheduler' && <SchedulerReport data={overview} />}
+            {user?.role === 'dept_head' && <DeptHeadReport data={overview} />}
+            {user?.role === 'physician' && <PhysicianReport data={physicianKpis} />}
+          </>
+        )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Schedule Summary report: physician assignments grouped by facility and by
+ * department within each facility, plus each site's block schedule in a
+ * plain table -- built straight from GET /api/schedules (already
+ * role-filtered by the backend, so a physician sees only their own, a dept
+ * head their department, admin/scheduler everything).
+ */
+function ScheduleSummaryReport() {
+  const [schedules, setSchedules] = useState(null);
+
+  useEffect(() => {
+    api.get('/schedules').then((res) => setSchedules(res.data)).catch(() => setSchedules([]));
+  }, []);
+
+  if (schedules === null) return <div className="text-muted">Building schedule summary...</div>;
+  if (schedules.length === 0) return <p className="text-muted">No rotation schedules recorded yet.</p>;
+
+  // Group by site -> { physicians, departments: dept -> physician set, rows }
+  const sites = [];
+  schedules.forEach((s) => {
+    const siteName = s.site?.name || 'Unknown site';
+    let site = sites.find((x) => x.name === siteName);
+    if (!site) {
+      site = { name: siteName, physicians: [], departments: [], rows: [] };
+      sites.push(site);
+    }
+    const phys = s.physician?.full_name || 'Unknown';
+    if (!site.physicians.includes(phys)) site.physicians.push(phys);
+
+    const deptLabel = s.department ? `${s.department.code} — ${s.department.name}` : 'Unknown department';
+    let dept = site.departments.find((d) => d.label === deptLabel);
+    if (!dept) {
+      dept = { label: deptLabel, physicians: [] };
+      site.departments.push(dept);
+    }
+    if (!dept.physicians.includes(phys)) dept.physicians.push(phys);
+
+    site.rows.push(s);
+  });
+  sites.sort((a, b) => a.name.localeCompare(b.name));
+  sites.forEach((site) => {
+    site.departments.sort((a, b) => a.label.localeCompare(b.label));
+    site.rows.sort((a, b) => {
+      const blockDiff = (a.block?.block_number || 0) - (b.block?.block_number || 0);
+      if (blockDiff !== 0) return blockDiff;
+      return (a.physician?.full_name || '').localeCompare(b.physician?.full_name || '');
+    });
+  });
+
+  return (
+    <div>
+      {/* 1. Physicians per facility (network overview) */}
+      <h5 className="report-section-title">Physician Assignments per Facility</h5>
+      <table className="table table-sm table-bordered align-middle">
+        <thead className="table-light">
+          <tr>
+            <th>Facility</th>
+            <th className="text-center">Physicians</th>
+            <th className="text-center">Rotations</th>
+            <th>Assigned Physicians</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sites.map((site) => (
+            <tr key={site.name}>
+              <td className="fw-semibold">{site.name}</td>
+              <td className="text-center">{site.physicians.length}</td>
+              <td className="text-center">{site.rows.length}</td>
+              <td className="small">{[...site.physicians].sort().join(', ')}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* 2 + 3. Per site: department breakdown, then the block schedule */}
+      {sites.map((site) => (
+        <div key={site.name} style={{ pageBreakInside: 'avoid' }}>
+          <h5 className="report-section-title">{site.name}</h5>
+
+          <h6 className="mt-2 mb-2">Physicians per Department</h6>
+          <table className="table table-sm table-bordered align-middle">
+            <thead className="table-light">
+              <tr>
+                <th>Department</th>
+                <th className="text-center">Physicians</th>
+                <th>Assigned Physicians</th>
+              </tr>
+            </thead>
+            <tbody>
+              {site.departments.map((dept) => (
+                <tr key={dept.label}>
+                  <td>{dept.label}</td>
+                  <td className="text-center">{dept.physicians.length}</td>
+                  <td className="small">{[...dept.physicians].sort().join(', ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <h6 className="mt-3 mb-2">Block Schedule</h6>
+          <table className="table table-sm table-striped table-bordered align-middle">
+            <thead className="table-light">
+              <tr>
+                <th>Block #</th>
+                <th>Date</th>
+                <th>Department</th>
+                <th>Physician</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {site.rows.map((s) => (
+                <tr key={s.id}>
+                  <td>Block {s.block?.block_number}</td>
+                  <td>{s.startDate} to {s.endDate}</td>
+                  <td>{s.department?.code}</td>
+                  <td>{s.physician?.full_name}</td>
+                  <td>{s.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
     </div>
   );
 }
