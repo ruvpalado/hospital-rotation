@@ -206,25 +206,30 @@ async function individualRotationCompletion(physicianId) {
 }
 
 /**
- * 8. Specialty Exposure = (blocks the physician has been assigned to / 13) * 100.
- * Measures how much of the 13-block curriculum the physician has been placed
- * into across specialties. Also returns a per-department block count for the
- * dashboard donut (each segment = a department the physician is assigned to).
+ * 8. Specialty Exposure = (COMPLETED blocks / 13) * 100 -- based on rotations
+ * the physician has actually finished (isRotationComplete), not merely
+ * scheduled/assigned ones. The donut shows every department the physician has
+ * been assigned to, so you can still see the spread of specialties; the
+ * percentage reflects only completed exposure.
  */
 async function specialtyExposure(physicianId) {
   const assignments = await getAssignmentsWithWeeks({ physician_id: physicianId });
   const distinctDepts = new Set(assignments.map((a) => a.SiteDepartment.Department.id));
 
-  // Blocks per department -> donut data (keyed by department code).
+  // Blocks per department -> donut data (keyed by department code). Includes
+  // all assigned departments so the distribution is visible regardless of
+  // completion.
   const byDepartment = {};
   assignments.forEach((a) => {
     const code = a.SiteDepartment.Department.code;
     byDepartment[code] = (byDepartment[code] || 0) + 1;
   });
 
+  const completedBlocks = assignments.filter((a) => isRotationComplete(a.weeks)).length;
   const assignedBlocks = assignments.length;
-  const pct = round((assignedBlocks / TOTAL_CURRICULUM_BLOCKS) * 100);
+  const pct = round((completedBlocks / TOTAL_CURRICULUM_BLOCKS) * 100);
   return {
+    completedBlocks,
     assignedBlocks,
     distinctDepartments: distinctDepts.size,
     totalBlocks: TOTAL_CURRICULUM_BLOCKS,

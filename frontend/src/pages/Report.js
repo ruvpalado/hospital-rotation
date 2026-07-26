@@ -991,7 +991,7 @@ function PhysicianReport({ data }) {
           ) : (
             <ChartBox><Doughnut data={seData} options={doughnutOptions} /></ChartBox>
           )}
-          <div className="text-muted small">{se.assignedBlocks}/{se.totalBlocks} blocks assigned, {se.distinctDepartments} department(s) ({se.pct}%)</div>
+          <div className="text-muted small">{se.completedBlocks}/{se.totalBlocks} blocks completed, {se.distinctDepartments} department(s) ({se.pct}%)</div>
         </div>
         <div className="col-md-4 text-center">
           <h6 className="mb-2">Notification Delivery</h6>
@@ -1002,7 +1002,7 @@ function PhysicianReport({ data }) {
 
       <h6 className="mt-4 mb-2">Detailed Figures</h6>
       <Row label="Individual Rotation Completion" value={`${irc.pct}%`} subtext={`${irc.completed}/${irc.totalRequired} curriculum blocks completed`} />
-      <Row label="Specialty Exposure" value={`${se.pct}%`} subtext={`${se.assignedBlocks}/${se.totalBlocks} blocks assigned across ${se.distinctDepartments} department(s)`} />
+      <Row label="Specialty Exposure" value={`${se.pct}%`} subtext={`${se.completedBlocks}/${se.totalBlocks} blocks completed across ${se.distinctDepartments} department(s)`} />
       <Row label="Notification Delivery Rate" value={`${nd.pct}%`} subtext={`${nd.succeeded}/${nd.total} notifications delivered`} />
     </div>
   );
