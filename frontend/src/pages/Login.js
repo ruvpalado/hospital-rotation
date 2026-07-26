@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import ForgotPasswordModal from './ForgotPasswordModal';
+import VersionFooter from '../components/VersionFooter';
 
 export default function Login() {
   const { t } = useTranslation();
@@ -25,7 +26,7 @@ export default function Login() {
   };
 
   return (
-    <div className="d-flex align-items-center justify-content-center vh-100 bg-light">
+    <div className="d-flex align-items-center justify-content-center vh-100 bg-light position-relative">
       <div className="card shadow p-4" style={{ width: 380 }}>
         <h4 className="mb-3 text-center">{t('appName')}</h4>
         {error && <div className="alert alert-danger py-2">{error}</div>}
@@ -54,6 +55,7 @@ export default function Login() {
       {showForgotPassword && (
         <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} />
       )}
+      <VersionFooter className="position-absolute bottom-0 start-50 translate-middle-x mb-3" />
     </div>
   );
 }

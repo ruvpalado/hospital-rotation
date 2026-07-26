@@ -5,16 +5,15 @@ import SchedulerDashboard from './dashboards/SchedulerDashboard';
 import DeptHeadDashboard from './dashboards/DeptHeadDashboard';
 import PhysicianDashboard from './dashboards/PhysicianDashboard';
 import HospitalAdminDashboard from './dashboards/HospitalAdminDashboard';
+import VersionFooter from '../components/VersionFooter';
 
 // Dynamic Dashboard Rendering: backend detects role via JWT; frontend picks the
 // matching layout after login, per the "Implementation Approach" spec.
 // Program Manager reuses AdminDashboard as-is (same hospital-wide view,
 // same permissions as Admin). Hospital Administrator gets its own
 // component, scoped to just their hospital -- see HospitalAdminDashboard.js.
-export default function Dashboard() {
-  const { user } = useAuth();
-  if (!user) return null;
-  switch (user.role) {
+function roleView(role) {
+  switch (role) {
     case 'developer': return <AdminDashboard />;
     case 'admin': return <AdminDashboard />;
     case 'program_manager': return <AdminDashboard />;
@@ -24,4 +23,15 @@ export default function Dashboard() {
     case 'physician': return <PhysicianDashboard />;
     default: return <div className="p-4">Unknown role.</div>;
   }
+}
+
+export default function Dashboard() {
+  const { user } = useAuth();
+  if (!user) return null;
+  return (
+    <>
+      {roleView(user.role)}
+      <VersionFooter className="mt-4 mb-3" />
+    </>
+  );
 }
