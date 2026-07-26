@@ -9,7 +9,8 @@
     "seed": "node seed/seed.js",
     "clear-schedules": "node scripts/clear-schedules.js",
     "update-block-dates": "node scripts/update-block-dates.js",
-    "create-developer-account": "node scripts/create-developer-account.js"
+    "create-developer-account": "node scripts/create-developer-account.js",
+    "smoke-test": "node scripts/smoke-test.js"
   },
   "dependencies": {
     "express": "^4.19.2",

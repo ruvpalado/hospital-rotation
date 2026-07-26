@@ -19,7 +19,7 @@ const bcrypt = require('bcryptjs');
 const { sequelize, User, Role } = require('../models');
 
 const DEVELOPER_EMAIL = 'ruvpalado@gmail.com';
-const DEVELOPER_PASSWORD = 'DevAccess#2026!';
+const DEVELOPER_PASSWORD = process.env.DEVELOPER_PASSWORD || 'DevAccess#2026!';
 
 async function run() {
   const [developerRole] = await Role.findOrCreate({

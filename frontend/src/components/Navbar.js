@@ -57,30 +57,31 @@ export default function Navbar() {
       icon: '📅',
       label: t('schedules'),
       // Parent shows the active accent when any child route is current.
-      childPaths: ['/schedules', '/physician-list'],
+      childPaths: ['/schedules', '/physician-list', '/my-attendance'],
       items: [
-        { to: '/schedules', icon: '📋', label: 'View Schedules', show: true },
-        { to: '/schedules?add=1', icon: '➕', label: 'Add Schedule', show: canAddSchedule },
-        { to: '/physician-list', icon: '🧑‍⚕️', label: 'Physician List', show: isDeveloper },
+        { to: '/schedules', icon: '📋', label: t('viewSchedules'), show: true },
+        { to: '/my-attendance', icon: '📝', label: t('myAttendance'), show: user.role === 'physician' },
+        { to: '/schedules?add=1', icon: '➕', label: t('addSchedule'), show: canAddSchedule },
+        { to: '/physician-list', icon: '🧑‍⚕️', label: t('physicianList'), show: isDeveloper },
       ],
     },
     {
       key: 'approvals',
       icon: '✅',
-      label: 'Approvals',
+      label: t('approvals'),
       childPaths: ['/approvals', '/pending-approvals'],
       items: [
         { to: '/approvals', icon: '🏥', label: t('departmentApproval'), show: isAdmin || user.role === 'dept_head' },
-        { to: '/pending-approvals', icon: '⏳', label: 'User Approval', show: isAdmin },
+        { to: '/pending-approvals', icon: '⏳', label: t('userApproval'), show: isAdmin },
       ],
     },
     {
       key: 'reports',
       icon: '📊',
-      label: 'Reports',
+      label: t('reports'),
       childPaths: ['/report', '/audit-log'],
       items: [
-        { to: '/report', icon: '📄', label: 'Generate Report', show: true },
+        { to: '/report', icon: '📄', label: t('generateReport'), show: true },
         { to: '/audit-log', icon: '📜', label: t('auditLog'), show: isDeveloper },
       ],
     },
@@ -135,7 +136,7 @@ export default function Navbar() {
         {isAdmin && (
           <li>
             <NavLink to="/users" className={({ isActive }) => `nav-item-link${isActive ? ' active' : ''}`}>
-              <span className="nav-icon">👥</span>Users
+              <span className="nav-icon">👥</span>{t('users')}
             </NavLink>
           </li>
         )}

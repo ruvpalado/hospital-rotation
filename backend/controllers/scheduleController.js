@@ -248,6 +248,8 @@ exports.updateWeekStatus = async (req, res) => {
 
   week.status = status;
   week.proposed_status = null; // admin finalized -> no proposal outstanding
+  week.approved_by_id = req.user.id;
+  week.approved_at = new Date();
   await week.save();
 
   const assignment = await RotationAssignment.findByPk(week.rotation_assignment_id, { include: [{ model: RotationWeek, as: 'weeks' }] });
@@ -307,6 +309,8 @@ exports.approveWeekStatus = async (req, res) => {
 
   if (approve) {
     week.status = week.proposed_status;
+    week.approved_by_id = req.user.id;
+    week.approved_at = new Date();
   }
   week.proposed_status = null;
   await week.save();
@@ -347,6 +351,8 @@ exports.approveAllProposals = async (req, res) => {
         if (w.proposed_status) {
           w.status = w.proposed_status;
           w.proposed_status = null;
+          w.approved_by_id = req.user.id;
+          w.approved_at = new Date();
           await w.save();
           approved += 1;
           changed = true;

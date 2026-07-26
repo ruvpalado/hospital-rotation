@@ -5,6 +5,13 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const cron = require('node-cron');
 
+// Fail-loud on a missing/placeholder JWT secret -- tokens signed with a
+// well-known default are trivially forgeable, so surface it at boot rather
+// than shipping an insecure deployment silently.
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'replace_with_a_long_random_string') {
+  console.warn('[startup][SECURITY] JWT_SECRET is missing or still the placeholder value -- set a long random JWT_SECRET in the environment.');
+}
+
 const bcrypt = require('bcryptjs');
 const { sequelize, User, Role, RotationAssignment, Block } = require('./models');
 const { sendUpcomingRotationReminder } = require('./services/notificationService');
@@ -165,6 +172,13 @@ async function ensureProposedStatusColumn() {
     );
     console.log('[startup] Added rotation_weeks.proposed_status column');
   }
+  // Approval audit-trail columns (who finalized the week status, and when).
+  const hasApprovedBy = existingColumns.some((c) => c.Field === 'approved_by_id');
+  if (!hasApprovedBy) {
+    await sequelize.query('ALTER TABLE rotation_weeks ADD COLUMN approved_by_id INT NULL');
+    await sequelize.query('ALTER TABLE rotation_weeks ADD COLUMN approved_at DATETIME NULL');
+    console.log('[startup] Added rotation_weeks.approved_by_id / approved_at columns');
+  }
 }
 
 // Permanent developer account: re-provisioned on every server boot, so it
@@ -177,7 +191,10 @@ async function ensureProposedStatusColumn() {
 // deactivated/unapproved somehow, those two flags are repaired so the
 // account can always log in.
 const DEVELOPER_EMAIL = 'ruvpalado@gmail.com';
-const DEVELOPER_DEFAULT_PASSWORD = 'DevAccess#2026!';
+// Default developer password can be overridden via env (DEVELOPER_PASSWORD)
+// so it isn't pinned in source. Only ever used when the account is first
+// created; an existing account's password is never overwritten here.
+const DEVELOPER_DEFAULT_PASSWORD = process.env.DEVELOPER_PASSWORD || 'DevAccess#2026!';
 
 // roles.key is a MySQL ENUM; on databases created before the 'developer'
 // role existed the column has to be widened before we can insert it (a plain

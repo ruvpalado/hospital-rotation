@@ -34,5 +34,14 @@
   "physician": "Physician",
   "startDate": "Start Date",
   "endDate": "End Date",
-  "language": "Language"
+  "language": "Language",
+  "approvals": "Approvals",
+  "reports": "Reports",
+  "users": "Users",
+  "userApproval": "User Approval",
+  "generateReport": "Generate Report",
+  "viewSchedules": "View Schedules",
+  "addSchedule": "Add Schedule",
+  "myAttendance": "My Attendance",
+  "physicianList": "Physician List"
 }

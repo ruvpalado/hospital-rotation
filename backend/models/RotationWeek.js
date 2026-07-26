@@ -22,6 +22,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('attended', 'maternity_leave', 'annual_leave', 'absent', 'pending'),
       allowNull: true,
     },
+    // Approval audit trail: who last finalized this week's official status
+    // (an admin approving a proposal or setting it directly) and when.
+    approved_by_id: { type: DataTypes.INTEGER, allowNull: true },
+    approved_at: { type: DataTypes.DATE, allowNull: true },
   }, {
     tableName: 'rotation_weeks',
     indexes: [{ unique: true, fields: ['rotation_assignment_id', 'week_number'] }],

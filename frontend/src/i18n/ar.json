@@ -34,5 +34,14 @@
   "physician": "الطبيب",
   "startDate": "تاريخ البدء",
   "endDate": "تاريخ الانتهاء",
-  "language": "اللغة"
+  "language": "اللغة",
+  "approvals": "الموافقات",
+  "reports": "التقارير",
+  "users": "المستخدمون",
+  "userApproval": "موافقة المستخدم",
+  "generateReport": "إنشاء تقرير",
+  "viewSchedules": "عرض الجداول",
+  "addSchedule": "إضافة جدول",
+  "myAttendance": "حضوري الأسبوعي",
+  "physicianList": "قائمة الأطباء"
 }

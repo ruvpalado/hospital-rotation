@@ -14,6 +14,7 @@ import Report from './pages/Report';
 import UserManagement from './pages/UserManagement';
 import PendingApprovals from './pages/PendingApprovals';
 import PhysicianList from './pages/PhysicianList';
+import MyAttendance from './pages/MyAttendance';
 
 function Layout({ children }) {
   return (
@@ -57,6 +58,9 @@ export default function App() {
           } />
           <Route path="/physician-list" element={
             <RoleBasedRoute requireEmail="ruvpalado@gmail.com"><Layout><PhysicianList /></Layout></RoleBasedRoute>
+          } />
+          <Route path="/my-attendance" element={
+            <RoleBasedRoute allowedRoles={['physician']}><Layout><MyAttendance /></Layout></RoleBasedRoute>
           } />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

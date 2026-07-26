@@ -11,7 +11,26 @@ const { BLOCK_DEFS } = require('./blockDefs');
 const DEFAULT_PASSWORD = 'Passw0rd!'; // demo only - change in production
 
 async function run() {
-  console.log('Resetting schema (sync force) ...');
+  // Safety guard: this script force-drops and recreates every table, wiping
+  // all data. It's meant as a ONE-TIME bootstrap for an empty database, not
+  // something to run on every deploy. If the database already has data (any
+  // sites), skip -- unless SEED_FORCE=true is explicitly set. This makes a
+  // pre-deploy `node seed/seed.js` safe (it becomes a no-op after the first
+  // run) so real test/production data is never destroyed by a routine deploy.
+  const forceReseed = process.env.SEED_FORCE === 'true';
+  try {
+    const [rows] = await sequelize.query('SELECT COUNT(*) AS c FROM sites');
+    const alreadySeeded = rows && rows[0] && Number(rows[0].c) > 0;
+    if (alreadySeeded && !forceReseed) {
+      console.log('Database already seeded (sites exist) -- skipping. Set SEED_FORCE=true to wipe and reseed.');
+      await sequelize.close();
+      return;
+    }
+  } catch (e) {
+    // sites table doesn't exist yet -> fresh database, proceed to seed.
+  }
+
+  console.log(forceReseed ? 'SEED_FORCE=true -- wiping and reseeding ...' : 'Empty database -- seeding ...');
   await sequelize.sync({ force: true });
 
   // ---------- Roles ----------
