@@ -6,6 +6,21 @@ import { usePhysicianKpis } from './useKpis';
 import KpiCard from '../../components/KpiCard';
 import { useAuth } from '../../context/AuthContext';
 
+// Human-friendly label for a rotation's derived status:
+//   scheduled   -> planned, not started
+//   in_progress -> started, ongoing
+//   completed   -> finished, requirements met
+//   incomplete  -> finished, requirements not met
+function statusLabel(status) {
+  switch (status) {
+    case 'scheduled': return 'scheduled';
+    case 'in_progress': return 'in progress';
+    case 'completed': return 'completed';
+    case 'incomplete': return 'incomplete';
+    default: return status || 'unknown';
+  }
+}
+
 // Physician: Individual Rotation Completion, Specialty Exposure,
 // Upcoming Rotation Alerts, Notification Delivery Rate
 export default function PhysicianDashboard() {
@@ -48,9 +63,11 @@ export default function PhysicianDashboard() {
                             (r) => `Block ${r.blockNumber} — ${r.site || '—'} / ${r.department || '—'}`
                           );
                         }
-                        // Remaining: assigned-but-unfinished rotations + unscheduled blocks.
+                        // Remaining: each block labelled with its real status
+                        // (Scheduled = not started, In progress = ongoing),
+                        // plus any curriculum blocks with no assignment yet.
                         const lines = (irc.remainingList || []).map(
-                          (r) => `Block ${r.blockNumber} — ${r.site || '—'} / ${r.department || '—'} (in progress)`
+                          (r) => `Block ${r.blockNumber} — ${r.site || '—'} / ${r.department || '—'} (${statusLabel(r.status)})`
                         );
                         if (irc.unscheduledCount > 0) lines.push(`${irc.unscheduledCount} block(s) not scheduled yet`);
                         return lines.length ? lines : 'Nothing remaining.';

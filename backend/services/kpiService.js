@@ -3,7 +3,7 @@ const {
   User, Role, Site, Department, SiteDepartment, Block,
   RotationAssignment, RotationWeek, ChangeRequest, Notification, AuditLog,
 } = require('../models');
-const { isRotationComplete, countAttendedWeeks } = require('../utils/rotationRules');
+const { isRotationComplete, countAttendedWeeks, deriveAssignmentStatus } = require('../utils/rotationRules');
 
 const TOTAL_CURRICULUM_BLOCKS = 13;
 
@@ -179,6 +179,12 @@ async function individualRotationCompletion(physicianId) {
     siteCode: a.SiteDepartment?.Site?.short_code || null,
     department: a.SiteDepartment?.Department?.code || null,
     departmentName: a.SiteDepartment?.Department?.name || null,
+    // Re-derive from weeks so the label is always accurate:
+    //   scheduled   -> planned, not started (no attendance recorded yet)
+    //   in_progress -> started, some weeks recorded, not yet finished
+    //   completed   -> finished, requirements met
+    //   incomplete  -> finished but requirements not met
+    status: deriveAssignmentStatus(a.weeks),
   });
 
   const completedAssignments = assignments.filter((a) => isRotationComplete(a.weeks));

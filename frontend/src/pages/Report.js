@@ -973,7 +973,9 @@ function PhysicianReport({ data }) {
                   <strong>Remaining:</strong>
                   <ul className="mb-0 ps-3">
                     {irc.remainingList?.map((r) => (
-                      <li key={`r${r.blockNumber}`}>Block {r.blockNumber} — {r.site || '—'} / {r.department || '—'} (in progress)</li>
+                      <li key={`r${r.blockNumber}`}>
+                        Block {r.blockNumber} — {r.site || '—'} / {r.department || '—'} ({(r.status || '').replace('_', ' ')})
+                      </li>
                     ))}
                     {irc.unscheduledCount > 0 && <li>{irc.unscheduledCount} block(s) not scheduled yet</li>}
                   </ul>
