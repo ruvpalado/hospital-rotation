@@ -47,26 +47,6 @@ const KPI_GROUPS = [
   ]],
 ];
 
-const ENTITIES = [
-  ['User / Role', 'Accounts and their role (RBAC). Roles: developer, program_administrator, program_manager, hospital_admin, dept_head, physician.'],
-  ['Site / Department / SiteDepartment', 'The 9 hospital sites, ~23 department/team codes, and the many-to-many mapping of which departments run at which site.'],
-  ['Block', 'The 13 curriculum rotation blocks, each a 4-week period with start/end dates.'],
-  ['RotationAssignment / RotationWeek', 'A physician assigned to a site-department for a block, split into 4 weekly rows each carrying an attendance status.'],
-  ['ChangeRequest', 'A requested modification to an assignment, with requester, resolver and timestamps (feeds Change Request Rate & Approval Turnaround).'],
-  ['Notification', 'Every email/SMS/system message, persisted with delivery status (mock or live).'],
-  ['AuditLog', 'Immutable record of views, creates, edits, approvals, and role changes for accountability.'],
-  ['PhysicianRoster', 'A name-only list (no login) that powers the Physician autocomplete on Add Schedule.'],
-];
-
-const STACK = [
-  ['Backend', 'Node.js + Express, Sequelize ORM, MySQL 8'],
-  ['Frontend', 'React 18 (Create React App), React Router, Chart.js, Bootstrap 5'],
-  ['Auth & Security', 'JWT (8h), bcrypt hashing, Helmet, express-rate-limit, CORS allowlist'],
-  ['Localization', 'i18next — English / Arabic with RTL support'],
-  ['Notifications', 'Mock mode by default; Twilio (SMS) + SendGrid (email) in live mode'],
-  ['Deployment', 'Docker images on Railway; separate development and production environments'],
-];
-
 function Section({ title, subtitle, children }) {
   return (
     <section className="mb-4">
@@ -159,51 +139,6 @@ export default function SystemOverview() {
             </table>
           </div>
         ))}
-      </Section>
-
-      <Section title="Architecture & technology">
-        <div className="table-responsive">
-          <table className="table table-sm table-striped">
-            <tbody>
-              {STACK.map(([layer, detail]) => (
-                <tr key={layer}><td style={{ width: '28%' }}><strong>{layer}</strong></td><td>{detail}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Section>
-
-      <Section title="Data model">
-        <div className="table-responsive">
-          <table className="table table-sm table-striped">
-            <thead><tr><th style={{ width: '32%' }}>Entity</th><th>Purpose</th></tr></thead>
-            <tbody>
-              {ENTITIES.map(([e, d]) => (
-                <tr key={e}><td><strong>{e}</strong></td><td className="small">{d}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Section>
-
-      <Section title="Security & access control">
-        <ul>
-          <li><strong>Authentication:</strong> JWT tokens (8-hour expiry), bcrypt-hashed passwords, password reset via one-time emailed codes.</li>
-          <li><strong>RBAC:</strong> role checks enforced centrally; Developer and Program Administrator are supersets of the elevated admin permissions, so access is consistent across every route.</li>
-          <li><strong>Brute-force protection:</strong> rate limiting on all auth endpoints (10 attempts / 15 min) and a lockout after 5 wrong reset-code guesses.</li>
-          <li><strong>Hardening:</strong> Helmet headers, a CORS allowlist, no hardcoded credentials, and CSV-only roster upload to avoid vulnerable spreadsheet parsers.</li>
-          <li><strong>Accountability:</strong> the Audit Log (developer-only) records every sensitive action, including all role changes.</li>
-        </ul>
-      </Section>
-
-      <Section title="Deployment">
-        <p>
-          The backend and frontend are built as Docker images and deployed on Railway across two
-          environments &mdash; <strong>development</strong> and <strong>production</strong> &mdash;
-          each backed by its own MySQL database. Schema updates and reference data are provisioned
-          automatically on startup, and configuration (database, JWT secret, API URL, notification
-          credentials) is supplied through environment variables.
-        </p>
       </Section>
 
       <p className="text-center text-muted small mt-4">
