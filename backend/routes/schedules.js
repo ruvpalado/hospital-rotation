@@ -3,6 +3,7 @@ const authenticate = require('../middleware/auth');
 const requireRole = require('../middleware/roles');
 const { requireDeveloperEmail } = requireRole;
 const withAudit = require('../middleware/auditLogger');
+const restrictDeveloperScheduleEdit = require('../middleware/restrictScheduleEdit');
 const scheduleController = require('../controllers/scheduleController');
 
 router.get('/', authenticate, withAudit('view', 'schedule'), scheduleController.listSchedules);
@@ -12,8 +13,10 @@ router.get('/:id', authenticate, withAudit('view', 'schedule'), scheduleControll
 // included here too.
 router.post('/', authenticate, requireRole('scheduler', 'admin'), withAudit('create', 'schedule'), scheduleController.createSchedule);
 // Edit an existing rotation schedule (physician, site/department, block,
-// dates) -- same audience as create.
-router.put('/:id', authenticate, requireRole('scheduler', 'admin'), withAudit('edit', 'schedule'), scheduleController.updateSchedule);
+// dates) -- same audience as create, EXCEPT the developer account, which is
+// restricted to view-only on schedules (blocked + audited before the role
+// check, since developer would otherwise pass as an admin superset).
+router.put('/:id', authenticate, restrictDeveloperScheduleEdit, requireRole('scheduler', 'admin'), withAudit('edit', 'schedule'), scheduleController.updateSchedule);
 // The Master Scheduler may change a week's attendance status (attended /
 // maternity_leave / annual_leave / absent) -- dept heads can view schedules
 // but not edit attendance directly. Admin included for the same reason as

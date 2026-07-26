@@ -50,7 +50,11 @@ export default function ScheduleViewer() {
   const elevated = user?.role === 'admin' || user?.role === 'program_administrator' || user?.role === 'developer';
   const canEditWeeks = user?.role === 'scheduler' || elevated;
   const canAddSchedule = user?.role === 'scheduler' || elevated;
-  const canEditSchedule = user?.role === 'scheduler' || elevated;
+  // Developer Account – Schedule Module Restriction: the developer can view
+  // schedules but not edit them, so the per-schedule Edit button is hidden for
+  // that account (the backend also blocks PUT /schedules/:id and audits the
+  // attempt -- see backend/middleware/restrictScheduleEdit.js).
+  const canEditSchedule = (user?.role === 'scheduler' || elevated) && user?.role !== 'developer';
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [viewingPhysician, setViewingPhysician] = useState(null);
   // Id of a just-created "next block" row, briefly highlighted in the modal.
