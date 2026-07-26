@@ -100,6 +100,56 @@ exports.reactivate = async (req, res) => {
 };
 
 /**
+ * Change a user's role. Developer-only -- the route is gated by
+ * requireDeveloperEmail, and this is deliberately NOT open to ordinary admins
+ * (role changes can grant full access, so they stay with the developer
+ * account). Validates the requested role against the roles table, blocks a
+ * developer from changing their OWN role (which could revoke their privileges
+ * mid-session), and records the before/after role in the audit log per the
+ * Audit Policy.
+ */
+exports.updateRole = async (req, res) => {
+  const targetId = Number(req.params.id);
+  const { roleKey } = req.body;
+
+  if (!roleKey) return res.status(400).json({ error: 'roleKey is required' });
+  if (targetId === req.user.id) {
+    return res.status(400).json({ error: 'You cannot change your own role.' });
+  }
+
+  const role = await Role.findOne({ where: { key: roleKey } });
+  if (!role) return res.status(400).json({ error: `Unknown role: ${roleKey}` });
+
+  const user = await User.findByPk(targetId, {
+    include: [Role, { model: Site, as: 'homeSite' }, { model: Department, as: 'homeDepartment' }],
+  });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  const previousRole = user.Role ? user.Role.key : null;
+  if (previousRole === roleKey) {
+    // No-op: role unchanged. Return current state without an audit entry.
+    return res.json(serialize(user));
+  }
+
+  user.role_id = role.id;
+  await user.save();
+  // Reload so the included Role reflects the new value in the serialized output.
+  await user.reload({
+    include: [Role, { model: Site, as: 'homeSite' }, { model: Department, as: 'homeDepartment' }],
+  });
+
+  await AuditLog.create({
+    user_id: req.user.id,
+    action: 'edit',
+    entity_type: 'user_role',
+    entity_id: user.id,
+    details: { targetUserEmail: user.email, previousRole, newRole: roleKey },
+  });
+
+  res.json(serialize(user));
+};
+
+/**
  * One-time / repeatable maintenance action: hard-deletes duplicate seed
  * users, keeping exactly one account per role (the earliest-created / lowest
  * id -- for admin this is the demo login used throughout setup, so the

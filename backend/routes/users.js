@@ -1,11 +1,17 @@
 const router = require('express').Router();
 const authenticate = require('../middleware/auth');
 const requireRole = require('../middleware/roles');
+const { requireDeveloperEmail } = requireRole;
 const withAudit = require('../middleware/auditLogger');
 const userController = require('../controllers/userController');
 
 // Only roles that assign/manage rotations need to browse or manage the user list.
 router.get('/', authenticate, requireRole('admin', 'scheduler', 'dept_head'), userController.list);
+
+// Developer-only: change a user's role. Gated to the developer account (not
+// any admin) because a role change can grant full access. The before/after
+// role is recorded in the audit log inside the controller.
+router.patch('/:id/role', authenticate, requireDeveloperEmail, userController.updateRole);
 
 // "Delete" a user account = deactivate (soft delete). Preserves rotation
 // history/audit logs tied to the account; see userController.deactivate.
