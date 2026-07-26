@@ -4,9 +4,9 @@ import api from '../api/axios';
 /**
  * Physician List module (developer-only page, /physician-list): manages the
  * name-only roster that populates the Physician autocomplete in Add
- * Schedule. Names can be bulk-uploaded from a CSV or Excel file, added
- * manually one at a time, or removed. No user accounts/logins are created --
- * these are display names only.
+ * Schedule. Names can be bulk-uploaded from a CSV file, added manually one at
+ * a time, or removed. No user accounts/logins are created -- these are
+ * display names only.
  */
 export default function PhysicianList() {
   const [entries, setEntries] = useState([]);
@@ -98,14 +98,15 @@ export default function PhysicianList() {
         <div className="card-body">
           <h6 className="card-title">Upload from file</h6>
           <p className="text-muted small mb-2">
-            CSV or Excel (.xlsx / .xls). Use a <code>name</code> header column, or simply put one
-            physician name per row in the first column.
+            CSV file. Use a <code>name</code> header column, or simply put one
+            physician name per row in the first column. (Exporting a spreadsheet
+            to CSV works too.)
           </p>
           <form onSubmit={handleUpload} className="d-flex align-items-center flex-wrap gap-2">
             <input
               key={fileInputKey}
               type="file"
-              accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              accept=".csv,text/csv"
               className="form-control"
               style={{ maxWidth: 340 }}
               onChange={(e) => setFile(e.target.files[0] || null)}

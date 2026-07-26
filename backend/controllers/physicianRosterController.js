@@ -1,14 +1,18 @@
 const { parse } = require('csv-parse/sync');
-const XLSX = require('xlsx');
 const { PhysicianRoster, AuditLog } = require('../models');
 
 /**
  * The Physician List module: a lightweight name-only roster, distinct from
  * real User accounts (no login/email/password). Its single purpose is to
  * populate the Physician autocomplete in Add Schedule (AddScheduleModal.js).
- * Managed from the "Physician List" page: bulk upload via CSV or Excel,
- * manual single-name add, and per-name delete -- all developer-only except
- * the read, which every schedule-creating role needs.
+ * Managed from the "Physician List" page: bulk upload via CSV, manual
+ * single-name add, and per-name delete -- all developer-only except the
+ * read, which every schedule-creating role needs.
+ *
+ * Excel upload was intentionally removed: the only library that reads .xlsx
+ * (xlsx/SheetJS) carries unpatched prototype-pollution and ReDoS advisories,
+ * so a crafted spreadsheet is an attack vector. CSV covers the same use case
+ * (any spreadsheet exports to CSV) with a trivially safe parser.
  */
 
 exports.listRoster = async (req, res) => {
@@ -17,25 +21,13 @@ exports.listRoster = async (req, res) => {
 };
 
 /**
- * Extracts an array of name strings from an uploaded CSV or Excel file.
- * CSV: expects a header row with a `name` (or `full_name`/`fullName` or
- * `physician`) column; if the file has no recognizable header, every
- * first-column value is treated as a name.
- * Excel (.xlsx/.xls): same logic against the first worksheet.
+ * Extracts an array of name strings from an uploaded CSV file. Expects a
+ * header row with a `name` (or `full_name`/`fullName`/`physician`) column; if
+ * the file has no recognizable header, every first-column value is treated as
+ * a name.
  */
 function extractNames(file) {
-  const isExcel = /\.(xlsx|xls)$/i.test(file.originalname)
-    || file.mimetype.includes('spreadsheetml')
-    || file.mimetype.includes('ms-excel');
-
-  let records; // array of objects (header mode) or array of arrays
-  if (isExcel) {
-    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    records = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false }); // array of arrays
-  } else {
-    records = parse(file.buffer.toString('utf8'), { skip_empty_lines: true, trim: true }); // array of arrays
-  }
+  const records = parse(file.buffer.toString('utf8'), { skip_empty_lines: true, trim: true }); // array of arrays
 
   if (records.length === 0) return [];
 
@@ -52,18 +44,27 @@ function extractNames(file) {
   return dataRows.map((row) => String(row[columnIndex] ?? '').trim());
 }
 
-/** Developer-only: bulk-add names from a CSV or Excel upload. Row-tolerant. */
+/** Developer-only: bulk-add names from a CSV upload. Row-tolerant. */
 exports.uploadRoster = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded. Send a CSV or Excel file as multipart/form-data with field name "file".' });
+      return res.status(400).json({ error: 'No file uploaded. Send a CSV file as multipart/form-data with field name "file".' });
+    }
+
+    // CSV only -- Excel is rejected up front (see module note: the xlsx reader
+    // has unpatched security advisories). Guides the user to export to CSV.
+    const looksLikeExcel = /\.(xlsx|xls|xlsm|xlsb)$/i.test(req.file.originalname)
+      || (req.file.mimetype || '').includes('spreadsheet')
+      || (req.file.mimetype || '').includes('ms-excel');
+    if (looksLikeExcel) {
+      return res.status(400).json({ error: 'Excel files are not supported. Please export your list to CSV and upload that instead.' });
     }
 
     let names;
     try {
       names = extractNames(req.file);
     } catch (parseErr) {
-      return res.status(400).json({ error: 'Could not parse the uploaded file. Make sure it is a valid CSV or Excel file.', details: parseErr.message });
+      return res.status(400).json({ error: 'Could not parse the uploaded file. Make sure it is a valid CSV file.', details: parseErr.message });
     }
 
     const existingEntries = await PhysicianRoster.findAll({ attributes: ['full_name'] });
