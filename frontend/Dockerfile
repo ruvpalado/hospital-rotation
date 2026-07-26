@@ -3,10 +3,17 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-# CI=false so Create React App does NOT treat eslint warnings as build errors.
-# Railway (and most CI) set CI=true by default, which would fail the
-# `react-scripts build` on any lint warning and leave the service with no
-# build to serve (Railway then returns 502 "Application failed to respond").
+# Build the app ONCE at image-build time (not at container startup). This is
+# more robust than building on every container start: build failures surface
+# in the deploy/build logs instead of crash-looping the running service, and
+# the container doesn't risk running out of memory doing a react-scripts build
+# at runtime. CI=false so eslint warnings don't fail the build (Railway sets
+# CI=true by default, which would otherwise turn warnings into build errors).
 ENV CI=false
+# GENERATE_SOURCEMAP=false cuts build memory + time substantially (source maps
+# aren't needed for the deployed bundle) -- avoids OOM on constrained builders.
+ENV GENERATE_SOURCEMAP=false
+RUN npm run build
 EXPOSE 3000
+# The container now only serves the pre-built static files.
 CMD ["npm", "start"]
