@@ -1,5 +1,9 @@
 node_modules/
 .env
+# Local env overrides (e.g. frontend/.env.local for local preview) must never
+# be committed -- they'd otherwise leak into the Railway production build.
+.env.local
+.env.*.local
 *.log
 build/
 dist/

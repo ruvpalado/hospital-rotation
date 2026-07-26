@@ -29,11 +29,22 @@ const app = express();
 // surfaces in the browser as "Network Error" or "status code 304".
 app.disable('etag');
 app.use(helmet());
-// In production, restrict to the deployed frontend's origin via FRONTEND_URL.
-// Falls back to allow-all so local development keeps working out of the box.
-const allowedOrigin = process.env.FRONTEND_URL || '*';
-console.log(`[startup] CORS allowed origin resolved to: "${allowedOrigin}" (raw FRONTEND_URL env var: ${JSON.stringify(process.env.FRONTEND_URL)})`);
-app.use(cors({ origin: allowedOrigin }));
+// CORS: allow the deployed frontend (FRONTEND_URL) plus localhost dev
+// origins, so a developer running the frontend locally (npm run dev on
+// :3000) can talk to this backend. If FRONTEND_URL isn't set at all, fall
+// back to allow-all so a fresh local backend works out of the box.
+const LOCAL_DEV_ORIGINS = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+const allowedOrigins = process.env.FRONTEND_URL
+  ? [process.env.FRONTEND_URL, ...LOCAL_DEV_ORIGINS]
+  : null; // null -> allow all (no FRONTEND_URL configured)
+console.log(`[startup] CORS allowed origins: ${allowedOrigins ? JSON.stringify(allowedOrigins) : 'all (FRONTEND_URL unset)'}`);
+app.use(cors({
+  origin: (origin, callback) => {
+    // Non-browser clients (curl, server-to-server) send no Origin -> allow.
+    if (!origin || !allowedOrigins) return callback(null, true);
+    return callback(null, allowedOrigins.includes(origin));
+  },
+}));
 app.use(express.json());
 app.use(morgan('dev'));
 
