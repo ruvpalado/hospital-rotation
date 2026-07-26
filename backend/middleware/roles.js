@@ -4,12 +4,23 @@
 // endpoint open to 'admin' is also open to the developer. Enforced here in
 // one place so the dozens of requireRole('admin', ...) routes don't each
 // need to list 'developer' explicitly.
+// Role expansion for access control. Some roles are supersets of others:
+//   - 'developer' is a superset of the elevated admin role.
+//   - 'program_administrator' is the SUCCESSOR to the retired 'admin' role and
+//     is RBAC-identical to it.
+// Expanding here in one place means every existing requireRole('admin', ...)
+// check automatically accepts these roles too, guaranteeing identical
+// permissions without editing dozens of route definitions.
+function effectiveRolesFor(role) {
+  if (role === 'developer') return ['developer', 'admin', 'program_administrator'];
+  if (role === 'program_administrator') return ['program_administrator', 'admin'];
+  return [role];
+}
+
 function requireRole(...allowedRoles) {
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
-    const effectiveRoles = req.user.role === 'developer'
-      ? [req.user.role, 'admin']
-      : [req.user.role];
+    const effectiveRoles = effectiveRolesFor(req.user.role);
     if (!allowedRoles.some((r) => effectiveRoles.includes(r))) {
       return res.status(403).json({ error: 'Forbidden: insufficient role', required: allowedRoles });
     }

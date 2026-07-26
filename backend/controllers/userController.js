@@ -6,6 +6,11 @@ const { sendNotification } = require('../services/notificationService');
 
 const MAX_ADMIN_ACCOUNTS = 3;
 const DEVELOPER_EMAIL = 'ruvpalado@gmail.com';
+// Elevated (admin-equivalent) role keys. 'program_administrator' is the
+// successor to the retired 'admin' role; both are gated identically for
+// self-registration approval and the elevated-account cap. New elevated
+// accounts use 'program_administrator'; 'admin' remains only for legacy rows.
+const ELEVATED_ROLE_KEYS = ['program_administrator', 'admin'];
 
 /**
  * One-time / repeatable maintenance action: adds the approval_status column
@@ -115,6 +120,10 @@ exports.updateRole = async (req, res) => {
   if (!roleKey) return res.status(400).json({ error: 'roleKey is required' });
   if (targetId === req.user.id) {
     return res.status(400).json({ error: 'You cannot change your own role.' });
+  }
+  // 'admin' is retired -- it can no longer be assigned. Use its successor.
+  if (roleKey === 'admin') {
+    return res.status(400).json({ error: 'The Admin role has been replaced by Program Administrator. Assign Program Administrator instead.' });
   }
 
   const role = await Role.findOne({ where: { key: roleKey } });
@@ -239,8 +248,10 @@ exports.cleanupDuplicates = async (req, res) => {
  */
 exports.resetAllUsers = async (req, res) => {
   try {
-    const adminRole = await Role.findOne({ where: { key: 'admin' } });
-    if (!adminRole) return res.status(500).json({ error: "'admin' role not found -- run the seed script first" });
+    const [adminRole] = await Role.findOrCreate({
+      where: { key: 'program_administrator' },
+      defaults: { key: 'program_administrator', label: 'Program Administrator' },
+    });
 
     // Order matters: children before parents, to satisfy foreign keys.
     await RotationWeek.destroy({ where: {} });
@@ -279,8 +290,8 @@ exports.resetAllUsers = async (req, res) => {
     res.json({
       message: 'All users deleted. Two fresh accounts provisioned.',
       accounts: [
-        { purpose: 'main (Master Scheduler + Admin merged)', email: mainAccount.email, password: 'Passw0rd!', role: 'admin' },
-        { purpose: 'developer', email: devAccount.email, password: 'DevAccess#2026!', role: 'admin' },
+        { purpose: 'main (Master Scheduler + Program Administrator merged)', email: mainAccount.email, password: 'Passw0rd!', role: 'program_administrator' },
+        { purpose: 'developer', email: devAccount.email, role: 'program_administrator' },
       ],
     });
   } catch (err) {
@@ -461,14 +472,15 @@ exports.approveUser = async (req, res) => {
       return res.status(400).json({ error: `This account is already '${target.approval_status}', not pending.` });
     }
 
-    if (target.Role.key === 'admin') {
+    if (ELEVATED_ROLE_KEYS.includes(target.Role.key)) {
       if (req.user.email !== DEVELOPER_EMAIL) {
-        return res.status(403).json({ error: `Only ${DEVELOPER_EMAIL} can approve admin account requests.` });
+        return res.status(403).json({ error: `Only ${DEVELOPER_EMAIL} can approve Program Administrator account requests.` });
       }
-      const adminRole = await Role.findOne({ where: { key: 'admin' } });
-      const currentAdminCount = await User.count({ where: { role_id: adminRole.id, approval_status: 'approved' } });
+      const elevatedRoles = await Role.findAll({ where: { key: ELEVATED_ROLE_KEYS } });
+      const elevatedRoleIds = elevatedRoles.map((r) => r.id);
+      const currentAdminCount = await User.count({ where: { role_id: elevatedRoleIds, approval_status: 'approved' } });
       if (currentAdminCount >= MAX_ADMIN_ACCOUNTS) {
-        return res.status(400).json({ error: `Maximum of ${MAX_ADMIN_ACCOUNTS} admin accounts already reached. Remove or deactivate one before approving another.` });
+        return res.status(400).json({ error: `Maximum of ${MAX_ADMIN_ACCOUNTS} Program Administrator accounts already reached. Remove or deactivate one before approving another.` });
       }
     }
 
@@ -511,8 +523,8 @@ exports.rejectUser = async (req, res) => {
       return res.status(400).json({ error: `This account is already '${target.approval_status}', not pending.` });
     }
 
-    if (target.Role.key === 'admin' && req.user.email !== DEVELOPER_EMAIL) {
-      return res.status(403).json({ error: `Only ${DEVELOPER_EMAIL} can reject admin account requests.` });
+    if (ELEVATED_ROLE_KEYS.includes(target.Role.key) && req.user.email !== DEVELOPER_EMAIL) {
+      return res.status(403).json({ error: `Only ${DEVELOPER_EMAIL} can reject Program Administrator account requests.` });
     }
 
     target.approval_status = 'rejected';

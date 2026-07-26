@@ -47,9 +47,10 @@ export default function ScheduleViewer() {
   // The Master Scheduler can change a week's attendance status; other roles
   // see schedules read-only. Admin is included since the merged admin
   // account also holds Master Scheduler permissions.
-  const canEditWeeks = user?.role === 'scheduler' || user?.role === 'admin' || user?.role === 'developer';
-  const canAddSchedule = user?.role === 'scheduler' || user?.role === 'admin' || user?.role === 'developer';
-  const canEditSchedule = user?.role === 'scheduler' || user?.role === 'admin' || user?.role === 'developer';
+  const elevated = user?.role === 'admin' || user?.role === 'program_administrator' || user?.role === 'developer';
+  const canEditWeeks = user?.role === 'scheduler' || elevated;
+  const canAddSchedule = user?.role === 'scheduler' || elevated;
+  const canEditSchedule = user?.role === 'scheduler' || elevated;
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [viewingPhysician, setViewingPhysician] = useState(null);
   // Id of a just-created "next block" row, briefly highlighted in the modal.

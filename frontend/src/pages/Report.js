@@ -136,7 +136,7 @@ export default function Report() {
           <ScheduleSummaryReport />
         ) : (
           <>
-            {(user?.role === 'admin' || user?.role === 'developer') && <AdminReport data={overview} />}
+            {(user?.role === 'admin' || user?.role === 'program_administrator' || user?.role === 'developer') && <AdminReport data={overview} />}
             {user?.role === 'program_manager' && <AdminReport data={overview} />}
             {user?.role === 'hospital_admin' && <HospitalAdminReport data={overview} />}
             {user?.role === 'scheduler' && <SchedulerReport data={overview} />}

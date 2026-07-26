@@ -37,7 +37,7 @@ export default function Navbar() {
 
   const isDeveloper = user.email === DEVELOPER_EMAIL;
   // Developer is treated as admin throughout the UI (superset role).
-  const isAdmin = user.role === 'admin' || user.role === 'developer';
+  const isAdmin = ['admin', 'program_administrator', 'developer'].includes(user.role);
   const canAddSchedule = user.role === 'scheduler' || isAdmin;
 
   const toggleLanguage = () => {

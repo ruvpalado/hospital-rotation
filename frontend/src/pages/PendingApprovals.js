@@ -61,10 +61,10 @@ export default function PendingApprovals() {
     <div className="container-fluid py-4">
       <h4 className="mb-1">User Approval</h4>
       <p className="text-muted small mb-3">
-        Any admin can approve or reject non-admin account requests. <strong>Admin-role</strong> requests
+        Any admin can approve or reject standard account requests. <strong>Program Administrator</strong> requests
         are routed to {DEVELOPER_EMAIL} for final confirmation
         {isDeveloper ? '' : ' — you can view them here, but only that account can approve or reject them'}.
-        Admin accounts are additionally capped at 3 total.
+        Program Administrator accounts are additionally capped at 3 total.
       </p>
       {error && <div className="alert alert-danger py-2">{error}</div>}
       {loading ? (
@@ -85,9 +85,10 @@ export default function PendingApprovals() {
           </thead>
           <tbody>
             {pending.map((row) => {
-              // Admin-role requests can only be actioned by the developer
-              // account (backend enforces this too). Other roles: any admin.
-              const isAdminRequest = row.role === 'admin';
+              // Elevated (Program Administrator) requests can only be actioned
+              // by the developer account (backend enforces this too). Other
+              // roles: any admin. 'admin' is the retired legacy key.
+              const isAdminRequest = row.role === 'program_administrator' || row.role === 'admin';
               const blocked = isAdminRequest && !isDeveloper;
               return (
                 <tr key={row.id}>

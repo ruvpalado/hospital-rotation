@@ -53,6 +53,10 @@ exports.register = async (req, res) => {
     if (roleKey === 'developer') {
       return res.status(400).json({ error: 'That role cannot be requested.' });
     }
+    // 'admin' is retired in favor of its successor, Program Administrator.
+    if (roleKey === 'admin') {
+      return res.status(400).json({ error: 'The Admin role has been replaced by Program Administrator. Please select Program Administrator.' });
+    }
     const role = await Role.findOne({ where: { key: roleKey } });
     if (!role) return res.status(400).json({ error: `Unknown role: ${roleKey}` });
 
@@ -83,8 +87,8 @@ exports.register = async (req, res) => {
       approval_status: 'pending',
     });
 
-    const pendingMessage = roleKey === 'admin'
-      ? 'Registration submitted. Admin accounts require approval from the developer account before you can log in.'
+    const pendingMessage = roleKey === 'program_administrator'
+      ? 'Registration submitted. Program Administrator accounts require approval from the developer account before you can log in.'
       : 'Registration submitted. An admin needs to approve your account before you can log in.';
 
     // Best-effort: a failed confirmation email shouldn't fail the

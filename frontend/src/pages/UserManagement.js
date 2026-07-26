@@ -14,7 +14,7 @@ import { useAuth } from '../context/AuthContext';
 // omitted (that role was retired). Keep in sync with backend Role.js.
 const ROLE_OPTIONS = [
   { key: 'developer', label: 'Developer' },
-  { key: 'admin', label: 'Admin' },
+  { key: 'program_administrator', label: 'Program Administrator' },
   { key: 'program_manager', label: 'Program Manager' },
   { key: 'hospital_admin', label: 'Hospital Administrator' },
   { key: 'dept_head', label: 'Department Head' },

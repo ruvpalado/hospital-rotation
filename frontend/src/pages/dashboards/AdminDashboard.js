@@ -23,7 +23,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="container-fluid py-4">
-      <h4 className="mb-3">Hospital Administrator Dashboard</h4>
+      <h4 className="mb-3">Program Administrator Dashboard</h4>
       <div className="row g-3 mb-4">
         <div className="col-md-3"><KpiCard label={t('rotationCoverageRate')} value={data.rotationCoverageRate.ratePct} suffix="%" subtext={`${data.rotationCoverageRate.assignedPhysicians}/${data.rotationCoverageRate.totalPhysicians} physicians`} /></div>
         <div className="col-md-3"><KpiCard label={t('curriculumCompliance')} value={data.curriculumCompliance.pct} suffix="%" subtext={`${data.curriculumCompliance.completed}/${data.curriculumCompliance.expected} block-assignments`} accent="#7FB37F" /></div>

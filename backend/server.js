@@ -276,6 +276,37 @@ async function ensureDeveloperAccount() {
   }
 }
 
+// Role Replacement: the 'admin' role is retired in favor of
+// 'program_administrator' (its successor -- RBAC-identical, see
+// middleware/roles.js). This widens the roles.key ENUM to include the new
+// key, provisions the role, and migrates every existing 'admin' account onto
+// it. Idempotent: once migrated there are no admin users left to move and the
+// ENUM already holds the value, so re-running is a cheap no-op. The 'admin'
+// role row + ENUM value are kept (harmless) so historical references remain
+// valid; no account is assigned to it anymore.
+async function ensureProgramAdministratorRole() {
+  const [columns] = await sequelize.query('SHOW COLUMNS FROM roles LIKE "key"');
+  const type = columns && columns[0] && columns[0].Type ? columns[0].Type : '';
+  if (!type.includes("'program_administrator'")) {
+    await sequelize.query(
+      "ALTER TABLE roles MODIFY COLUMN `key` ENUM('developer','admin','program_administrator','dept_head','physician','program_manager','hospital_admin') NOT NULL"
+    );
+    console.log("[startup] Added 'program_administrator' to roles.key ENUM");
+  }
+  const [programAdminRole] = await Role.findOrCreate({
+    where: { key: 'program_administrator' },
+    defaults: { key: 'program_administrator', label: 'Program Administrator' },
+  });
+  const adminRole = await Role.findOne({ where: { key: 'admin' } });
+  if (adminRole) {
+    const adminUserCount = await User.count({ where: { role_id: adminRole.id } });
+    if (adminUserCount > 0) {
+      await User.update({ role_id: programAdminRole.id }, { where: { role_id: adminRole.id } });
+      console.log(`[startup] Migrated ${adminUserCount} 'admin' user(s) to 'program_administrator'`);
+    }
+  }
+}
+
 async function start() {
   try {
     await sequelize.authenticate();
@@ -285,6 +316,7 @@ async function start() {
     await ensureResetCodeColumns();
     await ensureProposedStatusColumn();
     await ensureDeveloperAccount();
+    await ensureProgramAdministratorRole();
     app.listen(PORT, () => console.log(`Hospital Rotation API listening on port ${PORT}`));
   } catch (err) {
     console.error('Failed to start server:', err);

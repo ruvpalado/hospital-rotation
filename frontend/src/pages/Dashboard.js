@@ -15,7 +15,8 @@ import VersionFooter from '../components/VersionFooter';
 function roleView(role) {
   switch (role) {
     case 'developer': return <AdminDashboard />;
-    case 'admin': return <AdminDashboard />;
+    case 'program_administrator': return <AdminDashboard />;
+    case 'admin': return <AdminDashboard />; // legacy key, kept for any un-migrated session
     case 'program_manager': return <AdminDashboard />;
     case 'hospital_admin': return <HospitalAdminDashboard />;
     case 'scheduler': return <SchedulerDashboard />;
