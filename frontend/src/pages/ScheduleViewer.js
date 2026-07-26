@@ -108,6 +108,15 @@ export default function ScheduleViewer() {
     load();
   };
 
+  // Admin bulk-approves every pending proposal for a physician ("Approve All").
+  const approveAllProposals = async (physician) => {
+    await api.post('/schedules/approve-all-proposals', {
+      physicianId: physician.id,
+      physicianName: physician.name,
+    });
+    load();
+  };
+
   // A physician may propose updates to their own weeks (they only ever see
   // their own schedules, so no per-row ownership check is needed here).
   const canProposeWeeks = user?.role === 'physician';
@@ -232,6 +241,7 @@ export default function ScheduleViewer() {
           onUpdateWeek={updateWeek}
           onProposeWeek={proposeWeek}
           onApproveWeek={approveWeek}
+          onApproveAll={approveAllProposals}
           onAddNextBlock={handleAddNextBlock}
           highlightBlockId={highlightBlockId}
           onClose={() => setViewingPhysician(null)}

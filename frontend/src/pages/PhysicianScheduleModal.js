@@ -26,6 +26,7 @@ export default function PhysicianScheduleModal({
   onUpdateWeek,        // admin override / finalize
   onProposeWeek,       // physician proposes (awaits approval)
   onApproveWeek,       // admin approve(true)/reject(false) a proposal
+  onApproveAll,        // admin bulk-approve all proposals for this physician
   onAddNextBlock,
   highlightBlockId,
   onClose,
@@ -66,6 +67,13 @@ export default function PhysicianScheduleModal({
   const nextBlockNumber = highestBlock + 1;
   const physicianRef = { id: rows[0]?.physician?.id || null, name: physicianName };
 
+  // Total physician-proposed week updates awaiting approval, across all this
+  // physician's rotations -- drives the admin "Approve All" button.
+  const pendingCount = rows.reduce(
+    (n, s) => n + (s.weeks || []).filter((w) => w.proposed_status).length,
+    0
+  );
+
   return (
     <div className="modal d-block physician-schedule-modal" tabIndex={-1} style={{ background: 'rgba(0,0,0,0.5)' }}>
       <div className="modal-dialog modal-xl modal-dialog-scrollable">
@@ -82,6 +90,18 @@ export default function PhysicianScheduleModal({
                 <p className="mb-1"><strong>Physician:</strong> {physicianName}</p>
                 <p className="text-muted mb-3">Generated {new Date().toLocaleDateString()}</p>
               </div>
+
+              {/* Admin bulk-approval bar: approve every pending physician
+                  proposal for this physician at once. Sits beside the status
+                  information, hidden when there's nothing to approve. */}
+              {canEditWeeks && pendingCount > 0 && (
+                <div className="d-print-none alert alert-warning d-flex justify-content-between align-items-center py-2">
+                  <span>{pendingCount} weekly status update{pendingCount === 1 ? '' : 's'} awaiting approval.</span>
+                  <button type="button" className="btn btn-success btn-sm" onClick={() => onApproveAll(physicianRef)}>
+                    Approve All
+                  </button>
+                </div>
+              )}
 
               {rows.length === 0 ? (
                 <p className="text-muted">No rotations recorded for this physician.</p>

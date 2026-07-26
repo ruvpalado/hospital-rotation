@@ -394,6 +394,53 @@ exports.approveWeekStatus = async (req, res) => {
   res.json({ week, assignmentStatus: assignment.status, message: approve ? 'Update approved.' : 'Update rejected.' });
 };
 
+/**
+ * Bulk approve: approve every pending physician-proposed week status for a
+ * physician in one action (the "Approve All" button). Scheduler/admin only.
+ * Skips completed rotations (locked). Recomputes each affected rotation's
+ * derived status afterwards.
+ */
+exports.approveAllProposals = async (req, res) => {
+  try {
+    const { physicianId, physicianName } = req.body;
+    const physicianWhere = physicianId
+      ? { physician_id: physicianId }
+      : { physician_name: (physicianName || '').trim() };
+    if (!physicianId && !physicianWhere.physician_name) {
+      return res.status(400).json({ error: 'physicianId or physicianName is required' });
+    }
+
+    const assignments = await RotationAssignment.findAll({
+      where: physicianWhere,
+      include: [{ model: RotationWeek, as: 'weeks' }],
+    });
+
+    let approved = 0;
+    for (const a of assignments) {
+      if (a.status === 'completed') continue; // locked
+      let changed = false;
+      for (const w of a.weeks) {
+        if (w.proposed_status) {
+          w.status = w.proposed_status;
+          w.proposed_status = null;
+          await w.save();
+          approved += 1;
+          changed = true;
+        }
+      }
+      if (changed) {
+        a.status = deriveAssignmentStatus(a.weeks);
+        await a.save();
+      }
+    }
+
+    res.json({ approved, message: `${approved} proposed update(s) approved.` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to approve proposals', details: err.message });
+  }
+};
+
 exports.approveSchedule = async (req, res) => {
   const a = await RotationAssignment.findByPk(req.params.id);
   if (!a) return res.status(404).json({ error: 'Not found' });

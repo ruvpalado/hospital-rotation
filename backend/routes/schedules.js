@@ -27,6 +27,9 @@ router.patch('/weeks/:weekId', authenticate, requireRole('scheduler', 'admin'), 
 //  - Admins/schedulers approve (or reject) a physician's proposed status.
 router.patch('/weeks/:weekId/propose', authenticate, requireRole('physician'), withAudit('edit', 'rotation_week'), scheduleController.proposeWeekStatus);
 router.post('/weeks/:weekId/approve', authenticate, requireRole('scheduler', 'admin'), withAudit('approve', 'rotation_week'), scheduleController.approveWeekStatus);
+// "Approve All": bulk-approve every pending proposed week status for a
+// physician in one action.
+router.post('/approve-all-proposals', authenticate, requireRole('scheduler', 'admin'), withAudit('approve', 'rotation_week'), scheduleController.approveAllProposals);
 router.post('/:id/approve', authenticate, requireRole('admin', 'dept_head'), withAudit('approve', 'schedule'), scheduleController.approveSchedule);
 // Admin-only maintenance action: wipe rotation-schedule test data (change
 // requests, weeks, assignments) without touching reference data.
