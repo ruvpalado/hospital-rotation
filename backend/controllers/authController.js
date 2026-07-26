@@ -275,7 +275,16 @@ exports.me = async (req, res) => {
     include: [Role, { model: Site, as: 'homeSite' }, { model: Department, as: 'homeDepartment' }],
   });
   if (!user) return res.status(404).json({ error: 'User not found' });
-  return res.json(publicUser(user, user.Role));
+  const payload = publicUser(user, user.Role);
+  // Role-based dashboard: if this token's role is stale -- e.g. an admin
+  // changed the user's role since the token was issued -- mint a fresh token
+  // reflecting the CURRENT role. The client swaps it in, so the dashboard
+  // layout and the API authorization both update to the new role on the next
+  // app load, with no manual logout/login required.
+  if (req.user.role !== user.Role.key) {
+    payload.token = signToken(user, user.Role.key);
+  }
+  return res.json(payload);
 };
 
 function publicUser(user, role) {

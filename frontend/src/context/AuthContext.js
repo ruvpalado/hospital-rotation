@@ -8,24 +8,42 @@ export function AuthProvider({ children }) {
     const stored = localStorage.getItem('user');
     return stored ? JSON.parse(stored) : null;
   });
-  const [loading, setLoading] = useState(true);
+  // Only block the UI with a loading state when we have a token but no cached
+  // user yet. If a cached user exists we render it immediately and revalidate
+  // in the background (below), so refreshes don't flash a spinner.
+  const [loading, setLoading] = useState(
+    () => !!localStorage.getItem('token') && !localStorage.getItem('user')
+  );
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token && !user) {
-      api.get('/me')
-        .then((res) => {
-          setUser(res.data);
-          localStorage.setItem('user', JSON.stringify(res.data));
-        })
-        .catch(() => {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-        })
-        .finally(() => setLoading(false));
-    } else {
+    if (!token) {
       setLoading(false);
+      return undefined;
     }
+    // Always revalidate against /me on load. This is what makes the dashboard
+    // role-driven: if an admin changed this user's role, /me returns the new
+    // role (and a fresh token when the old one is stale), so the layout and
+    // permissions automatically adjust on the next load -- no re-login needed.
+    let cancelled = false;
+    api.get('/me')
+      .then((res) => {
+        if (cancelled) return;
+        const { token: refreshedToken, ...userData } = res.data;
+        if (refreshedToken) localStorage.setItem('token', refreshedToken);
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setUser(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
