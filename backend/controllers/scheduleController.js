@@ -303,7 +303,12 @@ exports.addNextBlock = async (req, res) => {
   }
 };
 
-/** Update a specific week's attendance status (attended / maternity_leave / annual_leave / absent) */
+/**
+ * Admin override / finalize: sets a week's official status directly
+ * (scheduler/admin/developer). This is the administrator's authority to
+ * change and finalize on the physician's behalf -- it also clears any
+ * pending proposal, since the admin has now had the final say.
+ */
 exports.updateWeekStatus = async (req, res) => {
   const { weekId } = req.params;
   const { status } = req.body;
@@ -318,6 +323,7 @@ exports.updateWeekStatus = async (req, res) => {
   }
 
   week.status = status;
+  week.proposed_status = null; // admin finalized -> no proposal outstanding
   await week.save();
 
   const assignment = await RotationAssignment.findByPk(week.rotation_assignment_id, { include: [{ model: RotationWeek, as: 'weeks' }] });
@@ -325,6 +331,67 @@ exports.updateWeekStatus = async (req, res) => {
   await assignment.save();
 
   res.json({ week, assignmentStatus: assignment.status });
+};
+
+/**
+ * Physician self-update: a physician proposes a new status for one of THEIR
+ * OWN weeks. It's held in proposed_status pending admin approval -- the
+ * official `status` (and therefore the rotation's completion) does not change
+ * until an admin approves. Only the physician who owns the rotation may call
+ * this (enforced by comparing the assignment's physician_id to req.user.id).
+ */
+exports.proposeWeekStatus = async (req, res) => {
+  const { weekId } = req.params;
+  const { status } = req.body;
+  const week = await RotationWeek.findByPk(weekId, { include: [{ model: RotationAssignment }] });
+  if (!week) return res.status(404).json({ error: 'Week not found' });
+
+  if (week.RotationAssignment?.physician_id !== req.user.id) {
+    return res.status(403).json({ error: 'You can only update your own rotation weeks.' });
+  }
+  if (week.RotationAssignment?.status === 'completed') {
+    return res.status(400).json({ error: 'This rotation is completed; weekly attendance can no longer be changed.' });
+  }
+
+  // Proposing the value that's already official is a no-op proposal -> clear.
+  week.proposed_status = status === week.status ? null : status;
+  await week.save();
+
+  res.json({ week, message: week.proposed_status
+    ? 'Update submitted for administrator approval.'
+    : 'No change (matches the current approved status).' });
+};
+
+/**
+ * Admin approval: approve a physician's proposed week status
+ * (scheduler/admin/developer). Copies proposed_status into the official
+ * status, clears the proposal, and recomputes the rotation's status.
+ * Passing nothing approves the outstanding proposal; there's also a reject
+ * path (approve=false) that just discards the proposal.
+ */
+exports.approveWeekStatus = async (req, res) => {
+  const { weekId } = req.params;
+  const { approve = true } = req.body;
+  const week = await RotationWeek.findByPk(weekId, { include: [{ model: RotationAssignment }] });
+  if (!week) return res.status(404).json({ error: 'Week not found' });
+  if (!week.proposed_status) {
+    return res.status(400).json({ error: 'There is no pending update to approve for this week.' });
+  }
+  if (week.RotationAssignment?.status === 'completed') {
+    return res.status(400).json({ error: 'This rotation is completed; weekly attendance can no longer be changed.' });
+  }
+
+  if (approve) {
+    week.status = week.proposed_status;
+  }
+  week.proposed_status = null;
+  await week.save();
+
+  const assignment = await RotationAssignment.findByPk(week.rotation_assignment_id, { include: [{ model: RotationWeek, as: 'weeks' }] });
+  assignment.status = deriveAssignmentStatus(assignment.weeks);
+  await assignment.save();
+
+  res.json({ week, assignmentStatus: assignment.status, message: approve ? 'Update approved.' : 'Update rejected.' });
 };
 
 exports.approveSchedule = async (req, res) => {

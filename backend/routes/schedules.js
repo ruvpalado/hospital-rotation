@@ -22,6 +22,11 @@ router.post('/add-next-block', authenticate, requireRole('scheduler', 'admin'), 
 // but not edit attendance directly. Admin included for the same reason as
 // above.
 router.patch('/weeks/:weekId', authenticate, requireRole('scheduler', 'admin'), withAudit('edit', 'rotation_week'), scheduleController.updateWeekStatus);
+// Weekly Status Update workflow:
+//  - Physicians propose a status for their OWN week (held for approval).
+//  - Admins/schedulers approve (or reject) a physician's proposed status.
+router.patch('/weeks/:weekId/propose', authenticate, requireRole('physician'), withAudit('edit', 'rotation_week'), scheduleController.proposeWeekStatus);
+router.post('/weeks/:weekId/approve', authenticate, requireRole('scheduler', 'admin'), withAudit('approve', 'rotation_week'), scheduleController.approveWeekStatus);
 router.post('/:id/approve', authenticate, requireRole('admin', 'dept_head'), withAudit('approve', 'schedule'), scheduleController.approveSchedule);
 // Admin-only maintenance action: wipe rotation-schedule test data (change
 // requests, weeks, assignments) without touching reference data.

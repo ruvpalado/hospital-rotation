@@ -90,10 +90,27 @@ export default function ScheduleViewer() {
     load();
   };
 
+  // Admin override / finalize a week's official status.
   const updateWeek = async (weekId, status) => {
     await api.patch(`/schedules/weeks/${weekId}`, { status });
     load();
   };
+
+  // Physician proposes a status for their own week (held for admin approval).
+  const proposeWeek = async (weekId, status) => {
+    await api.patch(`/schedules/weeks/${weekId}/propose`, { status });
+    load();
+  };
+
+  // Admin approves (true) or rejects (false) a physician's proposed status.
+  const approveWeek = async (weekId, approve) => {
+    await api.post(`/schedules/weeks/${weekId}/approve`, { approve });
+    load();
+  };
+
+  // A physician may propose updates to their own weeks (they only ever see
+  // their own schedules, so no per-row ownership check is needed here).
+  const canProposeWeeks = user?.role === 'physician';
 
   // "+ Add Block": open the Add Block form (physician + block locked, site
   // and department editable) rather than creating immediately.
@@ -144,12 +161,14 @@ export default function ScheduleViewer() {
     if (!name) return;
     let entry = physicians.find((p) => p.name.toLowerCase() === name.toLowerCase());
     if (!entry) {
-      entry = { name, count: 0, sites: [], hasConflict: false };
+      entry = { name, count: 0, sites: [], hasConflict: false, pendingApprovals: 0 };
       physicians.push(entry);
     }
     entry.count += 1;
     if (s.site && !entry.sites.some((x) => x.short_code === s.site.short_code)) entry.sites.push(s.site);
     if (conflictIds.includes(s.id)) entry.hasConflict = true;
+    // Count weeks with a physician-proposed status awaiting admin approval.
+    entry.pendingApprovals += (s.weeks || []).filter((w) => w.proposed_status).length;
   });
   physicians.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -207,9 +226,12 @@ export default function ScheduleViewer() {
           physicianName={viewingPhysician}
           schedules={schedules}
           canEditWeeks={canEditWeeks}
+          canProposeWeeks={canProposeWeeks}
           canEditSchedule={canEditSchedule}
           onEditSchedule={(s) => setEditingSchedule(s)}
           onUpdateWeek={updateWeek}
+          onProposeWeek={proposeWeek}
+          onApproveWeek={approveWeek}
           onAddNextBlock={handleAddNextBlock}
           highlightBlockId={highlightBlockId}
           onClose={() => setViewingPhysician(null)}
@@ -249,6 +271,11 @@ export default function ScheduleViewer() {
             <span className="d-flex align-items-center gap-2">
               <span className="fw-semibold">{p.name}</span>
               {p.hasConflict && <span className="badge bg-danger">Conflict</span>}
+              {canEditWeeks && p.pendingApprovals > 0 && (
+                <span className="badge bg-warning text-dark" title="Weekly status updates awaiting your approval">
+                  {p.pendingApprovals} pending approval{p.pendingApprovals === 1 ? '' : 's'}
+                </span>
+              )}
             </span>
             <span className="d-flex align-items-center gap-2">
               {p.sites.map((site) => (

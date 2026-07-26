@@ -19,10 +19,13 @@ export const WEEK_STATUS_OPTIONS = ['pending', 'attended', 'maternity_leave', 'a
 export default function PhysicianScheduleModal({
   physicianName,
   schedules,
-  canEditWeeks,
+  canEditWeeks,        // admin/scheduler: override + approve
+  canProposeWeeks,     // physician viewing their own weeks: propose
   canEditSchedule,
   onEditSchedule,
-  onUpdateWeek,
+  onUpdateWeek,        // admin override / finalize
+  onProposeWeek,       // physician proposes (awaits approval)
+  onApproveWeek,       // admin approve(true)/reject(false) a proposal
   onAddNextBlock,
   highlightBlockId,
   onClose,
@@ -144,15 +147,48 @@ export default function PhysicianScheduleModal({
                                       <td>{w.week_start_date}</td>
                                       <td>
                                         {canEditWeeks && s.status !== 'completed' ? (
-                                          <select
-                                            className="form-select form-select-sm"
-                                            value={w.status}
-                                            onChange={(e) => onUpdateWeek(w.id, e.target.value)}
-                                          >
-                                            {WEEK_STATUS_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                                          </select>
+                                          // Admin: override/finalize the official status,
+                                          // and approve/reject a physician's proposal.
+                                          <>
+                                            <select
+                                              className="form-select form-select-sm"
+                                              value={w.status}
+                                              onChange={(e) => onUpdateWeek(w.id, e.target.value)}
+                                            >
+                                              {WEEK_STATUS_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                                            </select>
+                                            {w.proposed_status && (
+                                              <div className="mt-1 small">
+                                                <span className="badge bg-warning text-dark me-2">
+                                                  Physician proposed: {w.proposed_status}
+                                                </span>
+                                                <button type="button" className="btn btn-success btn-sm py-0 me-1" onClick={() => onApproveWeek(w.id, true)}>Approve</button>
+                                                <button type="button" className="btn btn-outline-danger btn-sm py-0" onClick={() => onApproveWeek(w.id, false)}>Reject</button>
+                                              </div>
+                                            )}
+                                          </>
+                                        ) : canProposeWeeks && s.status !== 'completed' ? (
+                                          // Physician: propose a new status for their own
+                                          // week (held until an admin approves it).
+                                          <>
+                                            <select
+                                              className="form-select form-select-sm"
+                                              value={w.proposed_status || w.status}
+                                              onChange={(e) => onProposeWeek(w.id, e.target.value)}
+                                            >
+                                              {WEEK_STATUS_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                                            </select>
+                                            {w.proposed_status
+                                              ? <div className="small text-muted mt-1">Proposed <strong>{w.proposed_status}</strong> — awaiting admin approval (currently {w.status}).</div>
+                                              : <div className="small text-muted mt-1">Approved: {w.status}</div>}
+                                          </>
                                         ) : (
-                                          <span className="badge bg-light text-dark">{w.status}</span>
+                                          <>
+                                            <span className="badge bg-light text-dark">{w.status}</span>
+                                            {w.proposed_status && (
+                                              <span className="badge bg-warning text-dark ms-2">pending: {w.proposed_status}</span>
+                                            )}
+                                          </>
                                         )}
                                       </td>
                                     </tr>

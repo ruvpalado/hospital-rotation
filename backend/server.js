@@ -153,6 +153,20 @@ async function ensureResetCodeColumns() {
   }
 }
 
+// Weekly Status Update workflow: rotation_weeks gains proposed_status to hold
+// a physician's proposed weekly status pending admin approval (see
+// scheduleController.proposeWeekStatus / approveWeekStatus).
+async function ensureProposedStatusColumn() {
+  const [existingColumns] = await sequelize.query('SHOW COLUMNS FROM rotation_weeks');
+  const hasProposedStatus = existingColumns.some((c) => c.Field === 'proposed_status');
+  if (!hasProposedStatus) {
+    await sequelize.query(
+      "ALTER TABLE rotation_weeks ADD COLUMN proposed_status ENUM('attended','maternity_leave','annual_leave','absent','pending') NULL"
+    );
+    console.log('[startup] Added rotation_weeks.proposed_status column');
+  }
+}
+
 // Permanent developer account: re-provisioned on every server boot, so it
 // survives anything that wipes or rebuilds the database (the development
 // environment's pre-deploy seed, a fresh production database, a manual
@@ -227,6 +241,7 @@ async function start() {
     await ensureApprovalStatusColumn();
     await ensurePhysicianNameColumn();
     await ensureResetCodeColumns();
+    await ensureProposedStatusColumn();
     await ensureDeveloperAccount();
     app.listen(PORT, () => console.log(`Hospital Rotation API listening on port ${PORT}`));
   } catch (err) {
