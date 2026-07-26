@@ -5,7 +5,6 @@ import SchedulerDashboard from './dashboards/SchedulerDashboard';
 import DeptHeadDashboard from './dashboards/DeptHeadDashboard';
 import PhysicianDashboard from './dashboards/PhysicianDashboard';
 import HospitalAdminDashboard from './dashboards/HospitalAdminDashboard';
-import VersionFooter from '../components/VersionFooter';
 
 // Dynamic Dashboard Rendering: backend detects role via JWT; frontend picks the
 // matching layout after login, per the "Implementation Approach" spec.
@@ -29,10 +28,5 @@ function roleView(role) {
 export default function Dashboard() {
   const { user } = useAuth();
   if (!user) return null;
-  return (
-    <>
-      {roleView(user.role)}
-      <VersionFooter className="mt-4 mb-3" />
-    </>
-  );
+  return roleView(user.role);
 }

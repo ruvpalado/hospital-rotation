@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+import VersionFooter from '../components/VersionFooter';
 
 const EMPTY_FORM = { fullName: '', email: '', password: '', phone: '', roleKey: '', siteId: '', departmentId: '' };
 
@@ -102,7 +103,7 @@ export default function Register() {
 
   if (pendingMessage) {
     return (
-      <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light py-4">
+      <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light py-4 position-relative">
         <div className="card shadow p-4 text-center" style={{ width: 460 }}>
           <h4 className="mb-3">Registration Submitted</h4>
           <div className="alert alert-info">{pendingMessage}</div>
@@ -110,12 +111,13 @@ export default function Register() {
             Return to Log In
           </button>
         </div>
+        <VersionFooter className="position-absolute bottom-0 start-50 translate-middle-x mb-3" />
       </div>
     );
   }
 
   return (
-    <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light py-4">
+    <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light py-4 position-relative">
       <div className="card shadow p-4" style={{ width: 460 }}>
         <h4 className="mb-3 text-center">{t('register')}</h4>
         {error && <div className="alert alert-danger py-2">{error}</div>}
@@ -192,6 +194,7 @@ export default function Register() {
           </button>
         </form>
       </div>
+      <VersionFooter className="position-absolute bottom-0 start-50 translate-middle-x mb-3" />
     </div>
   );
 }

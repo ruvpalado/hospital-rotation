@@ -16,12 +16,15 @@ import PendingApprovals from './pages/PendingApprovals';
 import PhysicianList from './pages/PhysicianList';
 import MyAttendance from './pages/MyAttendance';
 import SystemOverview from './pages/SystemOverview';
+import VersionFooter from './components/VersionFooter';
 
 function Layout({ children }) {
   return (
     <>
       <Navbar />
       {children}
+      {/* Version watermark on every authenticated module. */}
+      <VersionFooter className="mt-4 mb-3" />
     </>
   );
 }
