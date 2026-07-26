@@ -3,6 +3,16 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
+# The API base URL is baked into the React bundle at BUILD time (CRA inlines
+# every REACT_APP_* var during `npm run build`). Railway passes service
+# variables to Docker builds as build args, so we declare the ARG and promote
+# it to an ENV before building. Without this, axios falls back to
+# http://localhost:5000/api and every API call (including login) fails in the
+# browser. Set REACT_APP_API_BASE_URL on each frontend service:
+#   dev  -> https://hospital-rotation-development.up.railway.app/api
+#   prod -> https://master-rotation.up.railway.app/api
+ARG REACT_APP_API_BASE_URL
+ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
 # Build the app ONCE at image-build time (not at container startup). This is
 # more robust than building on every container start: build failures surface
 # in the deploy/build logs instead of crash-looping the running service, and
