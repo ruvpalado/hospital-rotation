@@ -216,15 +216,6 @@ async function specialtyExposure(physicianId) {
   const assignments = await getAssignmentsWithWeeks({ physician_id: physicianId });
   const distinctDepts = new Set(assignments.map((a) => a.SiteDepartment.Department.id));
 
-  // Blocks per department -> donut data (keyed by department code). Includes
-  // all assigned departments so the distribution is visible regardless of
-  // completion.
-  const byDepartment = {};
-  assignments.forEach((a) => {
-    const code = a.SiteDepartment.Department.code;
-    byDepartment[code] = (byDepartment[code] || 0) + 1;
-  });
-
   // One entry per rotation, carrying the department, its SITE, and its status
   // (derived from the block/attendance), so the donut can colour each segment
   // by whether it is Completed / In Progress / Scheduled and show the site it
@@ -242,14 +233,11 @@ async function specialtyExposure(physicianId) {
     .sort((x, y) => (x.blockNumber || 0) - (y.blockNumber || 0));
 
   const completedBlocks = assignments.filter((a) => isRotationComplete(a.weeks)).length;
-  const assignedBlocks = assignments.length;
   const pct = round((completedBlocks / TOTAL_CURRICULUM_BLOCKS) * 100);
   return {
     completedBlocks,
-    assignedBlocks,
     distinctDepartments: distinctDepts.size,
     totalBlocks: TOTAL_CURRICULUM_BLOCKS,
-    byDepartment,
     rotations,
     pct,
   };

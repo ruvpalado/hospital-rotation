@@ -23,7 +23,6 @@ export default function HospitalAdminDashboard() {
   // siteUtilization/departmentCapacityUtilization/etc. are already
   // site-filtered server-side, so this object/array effectively describes
   // just one hospital.
-  const siteLabels = Object.keys(data.siteUtilization);
   const siteValues = Object.values(data.siteUtilization);
 
   const conflictIds = [...new Set((data.conflictFreeScheduling.conflictDetails || []).flatMap((c) => [c.a, c.b]))];
