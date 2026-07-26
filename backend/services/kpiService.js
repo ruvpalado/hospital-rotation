@@ -225,6 +225,18 @@ async function specialtyExposure(physicianId) {
     byDepartment[code] = (byDepartment[code] || 0) + 1;
   });
 
+  // One entry per rotation, carrying the department and its status (derived
+  // from the block/attendance), so the donut can colour each department
+  // segment by whether it is Completed / In Progress / Scheduled.
+  const rotations = assignments
+    .map((a) => ({
+      department: a.SiteDepartment?.Department?.code || '—',
+      departmentName: a.SiteDepartment?.Department?.name || '',
+      blockNumber: a.Block?.block_number,
+      status: deriveAssignmentStatus(a.weeks), // scheduled | in_progress | completed | incomplete
+    }))
+    .sort((x, y) => (x.blockNumber || 0) - (y.blockNumber || 0));
+
   const completedBlocks = assignments.filter((a) => isRotationComplete(a.weeks)).length;
   const assignedBlocks = assignments.length;
   const pct = round((completedBlocks / TOTAL_CURRICULUM_BLOCKS) * 100);
@@ -234,6 +246,7 @@ async function specialtyExposure(physicianId) {
     distinctDepartments: distinctDepts.size,
     totalBlocks: TOTAL_CURRICULUM_BLOCKS,
     byDepartment,
+    rotations,
     pct,
   };
 }

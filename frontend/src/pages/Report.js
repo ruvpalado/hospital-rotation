@@ -932,14 +932,15 @@ function PhysicianReport({ data }) {
     labels: ['Completed', 'Remaining'],
     datasets: [{ data: [irc.completed, Math.max(irc.totalRequired - irc.completed, 0)], backgroundColor: ['#7FB37F', '#e9ecef'] }],
   };
-  // Specialty Exposure pie: the departments the physician is assigned to
-  // (block count per department). Falls back to an empty-state below.
-  const seDeptLabels = Object.keys(se.byDepartment || {});
+  // Specialty Exposure donut: one segment per rotation, coloured by its
+  // status (completed / in progress / scheduled / incomplete).
+  const SE_STATUS_COLORS = { completed: '#4caf50', in_progress: '#4A90D9', scheduled: '#adb5bd', incomplete: '#D95F4A' };
+  const seRotations = se.rotations || [];
   const seData = {
-    labels: seDeptLabels,
+    labels: seRotations.map((r) => `${r.department} (Block ${r.blockNumber})`),
     datasets: [{
-      data: Object.values(se.byDepartment || {}),
-      backgroundColor: seDeptLabels.map((_, i) => `hsl(${(i * 53) % 360},65%,55%)`),
+      data: seRotations.map(() => 1),
+      backgroundColor: seRotations.map((r) => SE_STATUS_COLORS[r.status] || '#adb5bd'),
     }],
   };
   const ndData = {
@@ -986,7 +987,7 @@ function PhysicianReport({ data }) {
         </div>
         <div className="col-md-4 text-center">
           <h6 className="mb-2">Specialty Exposure</h6>
-          {seDeptLabels.length === 0 ? (
+          {seRotations.length === 0 ? (
             <ChartBox><div className="d-flex align-items-center justify-content-center h-100 text-muted small">No assignments yet</div></ChartBox>
           ) : (
             <ChartBox><Doughnut data={seData} options={doughnutOptions} /></ChartBox>

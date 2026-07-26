@@ -6,6 +6,14 @@ import { usePhysicianKpis } from './useKpis';
 import KpiCard from '../../components/KpiCard';
 import { useAuth } from '../../context/AuthContext';
 
+// Status -> colour for the Specialty Exposure donut segments.
+const STATUS_COLORS = {
+  completed: '#4caf50',    // green
+  in_progress: '#4A90D9',  // blue
+  scheduled: '#adb5bd',    // gray
+  incomplete: '#D95F4A',   // red
+};
+
 // Human-friendly label for a rotation's derived status:
 //   scheduled   -> planned, not started
 //   in_progress -> started, ongoing
@@ -82,17 +90,44 @@ export default function PhysicianDashboard() {
         </div>
         <div className="col-md-6">
           <div className="card shadow-sm p-3">
-            <h6>{t('specialtyExposure')} — departments assigned</h6>
-            {Object.keys(se.byDepartment || {}).length === 0 ? (
+            <h6>{t('specialtyExposure')} — departments by status</h6>
+            {(se.rotations || []).length === 0 ? (
               <p className="text-muted small mb-0">No rotation assignments yet.</p>
             ) : (
-              <Doughnut data={{
-                labels: Object.keys(se.byDepartment),
-                datasets: [{
-                  data: Object.values(se.byDepartment),
-                  backgroundColor: Object.keys(se.byDepartment).map((_, i) => `hsl(${(i * 53) % 360},65%,55%)`),
-                }],
-              }} options={{ plugins: { legend: { position: 'bottom' } } }} />
+              <>
+                <Doughnut
+                  data={{
+                    // One equal segment per department rotation, coloured by
+                    // its status so completed / in-progress / scheduled are
+                    // visible at a glance.
+                    labels: se.rotations.map((r) => `${r.department} (Block ${r.blockNumber})`),
+                    datasets: [{
+                      data: se.rotations.map(() => 1),
+                      backgroundColor: se.rotations.map((r) => STATUS_COLORS[r.status] || '#adb5bd'),
+                    }],
+                  }}
+                  options={{
+                    plugins: {
+                      legend: { display: false },
+                      tooltip: {
+                        callbacks: {
+                          label: (ctx) => {
+                            const r = se.rotations[ctx.dataIndex];
+                            return `${r.department} — ${r.departmentName} (${statusLabel(r.status)})`;
+                          },
+                        },
+                      },
+                    },
+                  }}
+                />
+                {/* Status colour key */}
+                <div className="d-flex flex-wrap gap-3 justify-content-center mt-3 small">
+                  <span><span className="badge" style={{ background: STATUS_COLORS.completed }}>&nbsp;</span> Completed</span>
+                  <span><span className="badge" style={{ background: STATUS_COLORS.in_progress }}>&nbsp;</span> In Progress</span>
+                  <span><span className="badge" style={{ background: STATUS_COLORS.scheduled }}>&nbsp;</span> Scheduled</span>
+                  <span><span className="badge" style={{ background: STATUS_COLORS.incomplete }}>&nbsp;</span> Incomplete</span>
+                </div>
+              </>
             )}
           </div>
         </div>
