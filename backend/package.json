@@ -9,6 +9,7 @@
     "seed": "node seed/seed.js",
     "clear-schedules": "node scripts/clear-schedules.js",
     "update-block-dates": "node scripts/update-block-dates.js",
+    "delete-user": "node scripts/delete-user.js",
     "smoke-test": "node scripts/smoke-test.js"
   },
   "dependencies": {
