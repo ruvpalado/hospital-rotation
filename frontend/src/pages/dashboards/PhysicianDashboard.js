@@ -37,7 +37,7 @@ export default function PhysicianDashboard() {
       <h4 className="mb-3">My Rotation Progress</h4>
       <div className="row g-3 mb-4">
         <div className="col-md-4"><KpiCard label={t('individualRotationCompletion')} value={irc.pct} suffix="%" subtext={`${irc.completed}/${irc.totalRequired} blocks completed`} accent="#4A90D9" /></div>
-        <div className="col-md-4"><KpiCard label={t('specialtyExposure')} value={se.pct} suffix="%" subtext={`${se.distinctDepartments}/${se.totalBlocks} blocks in a distinct specialty`} accent="#7FB37F" /></div>
+        <div className="col-md-4"><KpiCard label={t('specialtyExposure')} value={se.pct} suffix="%" subtext={`${se.assignedBlocks}/${se.totalBlocks} blocks assigned across ${se.distinctDepartments} department(s)`} accent="#7FB37F" /></div>
       </div>
 
       <div className="row g-3">
