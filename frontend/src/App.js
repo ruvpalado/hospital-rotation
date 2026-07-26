@@ -15,6 +15,7 @@ import UserManagement from './pages/UserManagement';
 import PendingApprovals from './pages/PendingApprovals';
 import PhysicianList from './pages/PhysicianList';
 import MyAttendance from './pages/MyAttendance';
+import SystemOverview from './pages/SystemOverview';
 
 function Layout({ children }) {
   return (
@@ -61,6 +62,9 @@ export default function App() {
           } />
           <Route path="/my-attendance" element={
             <RoleBasedRoute allowedRoles={['physician']}><Layout><MyAttendance /></Layout></RoleBasedRoute>
+          } />
+          <Route path="/system-overview" element={
+            <RoleBasedRoute><Layout><SystemOverview /></Layout></RoleBasedRoute>
           } />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

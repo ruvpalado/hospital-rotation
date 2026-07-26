@@ -140,6 +140,12 @@ export default function Navbar() {
             </NavLink>
           </li>
         )}
+
+        <li>
+          <NavLink to="/system-overview" className={({ isActive }) => `nav-item-link${isActive ? ' active' : ''}`}>
+            <span className="nav-icon">ℹ️</span>{t('systemOverview')}
+          </NavLink>
+        </li>
       </ul>
 
       <div className="nav-right">
