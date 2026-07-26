@@ -225,13 +225,17 @@ async function specialtyExposure(physicianId) {
     byDepartment[code] = (byDepartment[code] || 0) + 1;
   });
 
-  // One entry per rotation, carrying the department and its status (derived
-  // from the block/attendance), so the donut can colour each department
-  // segment by whether it is Completed / In Progress / Scheduled.
+  // One entry per rotation, carrying the department, its SITE, and its status
+  // (derived from the block/attendance), so the donut can colour each segment
+  // by whether it is Completed / In Progress / Scheduled and show the site it
+  // belongs to -- per the Department Rotation Identification Rule (with Site
+  // Reference).
   const rotations = assignments
     .map((a) => ({
       department: a.SiteDepartment?.Department?.code || '—',
       departmentName: a.SiteDepartment?.Department?.name || '',
+      site: a.SiteDepartment?.Site?.name || '—',
+      siteCode: a.SiteDepartment?.Site?.short_code || '',
       blockNumber: a.Block?.block_number,
       status: deriveAssignmentStatus(a.weeks), // scheduled | in_progress | completed | incomplete
     }))

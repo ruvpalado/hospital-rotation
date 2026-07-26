@@ -100,7 +100,7 @@ export default function PhysicianDashboard() {
                     // One equal segment per department rotation, coloured by
                     // its status so completed / in-progress / scheduled are
                     // visible at a glance.
-                    labels: se.rotations.map((r) => `${r.department} (Block ${r.blockNumber})`),
+                    labels: se.rotations.map((r) => `${r.department} @ ${r.siteCode || '—'} (Block ${r.blockNumber})`),
                     datasets: [{
                       data: se.rotations.map(() => 1),
                       backgroundColor: se.rotations.map((r) => STATUS_COLORS[r.status] || '#adb5bd'),
@@ -111,9 +111,15 @@ export default function PhysicianDashboard() {
                       legend: { display: false },
                       tooltip: {
                         callbacks: {
+                          // Department, site, and status per the Department
+                          // Rotation Identification Rule (with Site Reference).
                           label: (ctx) => {
                             const r = se.rotations[ctx.dataIndex];
-                            return `${r.department} — ${r.departmentName} (${statusLabel(r.status)})`;
+                            return `Block ${r.blockNumber}: ${r.department} (${r.departmentName})`;
+                          },
+                          afterLabel: (ctx) => {
+                            const r = se.rotations[ctx.dataIndex];
+                            return `Site: ${r.site || '—'}  ·  Status: ${statusLabel(r.status)}`;
                           },
                         },
                       },
