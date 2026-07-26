@@ -13,7 +13,11 @@ ENV CI=false
 # GENERATE_SOURCEMAP=false cuts build memory + time substantially (source maps
 # aren't needed for the deployed bundle) -- avoids OOM on constrained builders.
 ENV GENERATE_SOURCEMAP=false
+# serve listens on $PORT (Railway injects PORT=8080). EXPOSE must match the
+# port the app actually binds, because Railway derives the public domain's
+# target port from EXPOSE when it isn't overridden -- a mismatch here routes
+# the domain to a dead port and returns 502.
 RUN npm run build
-EXPOSE 3000
+EXPOSE 8080
 # The container now only serves the pre-built static files.
 CMD ["npm", "start"]
