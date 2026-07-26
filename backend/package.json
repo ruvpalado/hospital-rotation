@@ -9,7 +9,6 @@
     "seed": "node seed/seed.js",
     "clear-schedules": "node scripts/clear-schedules.js",
     "update-block-dates": "node scripts/update-block-dates.js",
-    "create-developer-account": "node scripts/create-developer-account.js",
     "smoke-test": "node scripts/smoke-test.js"
   },
   "dependencies": {
@@ -22,7 +21,7 @@
     "dotenv": "^16.4.5",
     "node-cron": "^3.0.3",
     "helmet": "^7.1.0",
-    "express-validator": "^7.1.0",
+    "express-rate-limit": "^7.4.0",
     "morgan": "^1.10.0",
     "twilio": "^5.2.2",
     "@sendgrid/mail": "^8.1.3",

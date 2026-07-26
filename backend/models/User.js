@@ -23,5 +23,10 @@ module.exports = (sequelize, DataTypes) => {
     // authController.forgotPassword/verifyResetCode/resetPassword.
     reset_code_hash: { type: DataTypes.STRING, allowNull: true },
     reset_code_expires_at: { type: DataTypes.DATE, allowNull: true },
+    // Number of failed verify/reset attempts against the CURRENT code. Reset
+    // to 0 each time a new code is issued; once it reaches MAX_RESET_ATTEMPTS
+    // the code is treated as invalid (forcing a fresh request), so a 6-digit
+    // code can't be brute-forced even from many IPs. See authController.
+    reset_code_attempts: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   }, { tableName: 'users' });
 };

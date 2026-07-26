@@ -4,6 +4,11 @@ const { User, Role, Site, Department } = require('../models');
 const { sendNotification } = require('../services/notificationService');
 
 const RESET_CODE_TTL_MINUTES = 15;
+// After this many failed verify/reset guesses the current code is burned, so
+// even a distributed attacker can't grind through the 1,000,000-code space.
+const MAX_RESET_ATTEMPTS = 5;
+// Minimum password length, enforced consistently on register and reset.
+const MIN_PASSWORD_LENGTH = 8;
 
 function generateResetCode() {
   // 6-digit numeric code, zero-padded (e.g. "042917"). Never stored raw --
@@ -38,6 +43,9 @@ exports.register = async (req, res) => {
     const { fullName, email, password, phone, roleKey, siteId, departmentId, languagePref } = req.body;
     if (!fullName || !email || !password || !roleKey) {
       return res.status(400).json({ error: 'fullName, email, password, roleKey are required' });
+    }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
     }
     // 'developer' is an internal, provision-only role -- it must never be
     // requestable through self-registration (it's also not offered in the
@@ -103,7 +111,7 @@ exports.register = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: 'Registration failed', details: err.message });
+    return res.status(500).json({ error: 'Registration failed' });
   }
 };
 
@@ -131,7 +139,7 @@ exports.login = async (req, res) => {
     return res.json({ token, user: publicUser(user, user.Role) });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: 'Login failed', details: err.message });
+    return res.status(500).json({ error: 'Login failed' });
   }
 };
 
@@ -154,6 +162,7 @@ exports.forgotPassword = async (req, res) => {
     const code = generateResetCode();
     user.reset_code_hash = await bcrypt.hash(code, 10);
     user.reset_code_expires_at = new Date(Date.now() + RESET_CODE_TTL_MINUTES * 60 * 1000);
+    user.reset_code_attempts = 0; // fresh code -> reset the guard counter
     await user.save();
 
     await sendNotification({
@@ -167,7 +176,7 @@ exports.forgotPassword = async (req, res) => {
     return res.json(genericResponse);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: 'Failed to send reset code', details: err.message });
+    return res.status(500).json({ error: 'Failed to send reset code' });
   }
 };
 
@@ -188,14 +197,26 @@ exports.verifyResetCode = async (req, res) => {
     const user = await User.findOne({ where: { email } });
     if (!user || !user.reset_code_hash || !user.reset_code_expires_at) return res.status(400).json(invalid);
     if (new Date(user.reset_code_expires_at) < new Date()) return res.status(400).json(invalid);
+    if (user.reset_code_attempts >= MAX_RESET_ATTEMPTS) {
+      // Too many wrong guesses against this code -- burn it so the only way
+      // forward is to request a fresh one.
+      user.reset_code_hash = null;
+      user.reset_code_expires_at = null;
+      await user.save();
+      return res.status(400).json(invalid);
+    }
 
     const ok = await bcrypt.compare(code, user.reset_code_hash);
-    if (!ok) return res.status(400).json(invalid);
+    if (!ok) {
+      user.reset_code_attempts += 1;
+      await user.save();
+      return res.status(400).json(invalid);
+    }
 
     return res.json({ valid: true });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: 'Failed to verify code', details: err.message });
+    return res.status(500).json({ error: 'Failed to verify code' });
   }
 };
 
@@ -210,27 +231,38 @@ exports.resetPassword = async (req, res) => {
     if (!email || !code || !newPassword) {
       return res.status(400).json({ error: 'email, code, and newPassword are required' });
     }
-    if (newPassword.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
     }
 
     const invalid = { error: 'Invalid or expired code.' };
     const user = await User.findOne({ where: { email } });
     if (!user || !user.reset_code_hash || !user.reset_code_expires_at) return res.status(400).json(invalid);
     if (new Date(user.reset_code_expires_at) < new Date()) return res.status(400).json(invalid);
+    if (user.reset_code_attempts >= MAX_RESET_ATTEMPTS) {
+      user.reset_code_hash = null;
+      user.reset_code_expires_at = null;
+      await user.save();
+      return res.status(400).json(invalid);
+    }
 
     const ok = await bcrypt.compare(code, user.reset_code_hash);
-    if (!ok) return res.status(400).json(invalid);
+    if (!ok) {
+      user.reset_code_attempts += 1;
+      await user.save();
+      return res.status(400).json(invalid);
+    }
 
     user.password_hash = await bcrypt.hash(newPassword, 10);
     user.reset_code_hash = null;
     user.reset_code_expires_at = null;
+    user.reset_code_attempts = 0;
     await user.save();
 
     return res.json({ message: 'Password reset successful. You can now log in with your new password.' });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: 'Failed to reset password', details: err.message });
+    return res.status(500).json({ error: 'Failed to reset password' });
   }
 };
 

@@ -9,9 +9,17 @@ const cron = require('node-cron');
 // well-known default are trivially forgeable, so surface it at boot rather
 // than shipping an insecure deployment silently.
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'replace_with_a_long_random_string') {
-  console.warn('[startup][SECURITY] JWT_SECRET is missing or still the placeholder value -- set a long random JWT_SECRET in the environment.');
+  const msg = '[startup][SECURITY] JWT_SECRET is missing or still the placeholder value -- set a long random JWT_SECRET in the environment.';
+  // In production a forgeable/absent secret is unacceptable: refuse to boot
+  // rather than serve tokens anyone could mint. Locally it's just a warning.
+  if (process.env.NODE_ENV === 'production') {
+    console.error(`${msg} Refusing to start in production.`);
+    process.exit(1);
+  }
+  console.warn(msg);
 }
 
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { sequelize, User, Role, RotationAssignment, Block } = require('./models');
 const { sendUpcomingRotationReminder } = require('./services/notificationService');
@@ -30,6 +38,10 @@ const roleRoutes = require('./routes/roles');
 const physicianRosterRoutes = require('./routes/physicianRoster');
 
 const app = express();
+// Behind Railway's proxy: trust the first proxy hop so express-rate-limit and
+// req.ip resolve the real client IP from X-Forwarded-For instead of bucketing
+// every request under the proxy's own address.
+app.set('trust proxy', 1);
 // This is a live scheduling API, not static content -- always serve fresh data.
 // Without this, Express's automatic ETag/304 responses get treated as request
 // failures by axios (its default validateStatus only accepts 200-299), which
@@ -53,7 +65,7 @@ app.use(cors({
   },
 }));
 app.use(express.json());
-app.use(morgan('dev'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
@@ -158,6 +170,12 @@ async function ensureResetCodeColumns() {
     await sequelize.query('ALTER TABLE users ADD COLUMN reset_code_expires_at DATETIME NULL');
     console.log('[startup] Added users.reset_code_expires_at column');
   }
+  // Brute-force guard counter for the current reset code (see authController).
+  const hasResetCodeAttempts = existingColumns.some((c) => c.Field === 'reset_code_attempts');
+  if (!hasResetCodeAttempts) {
+    await sequelize.query('ALTER TABLE users ADD COLUMN reset_code_attempts INT NOT NULL DEFAULT 0');
+    console.log('[startup] Added users.reset_code_attempts column');
+  }
 }
 
 // Weekly Status Update workflow: rotation_weeks gains proposed_status to hold
@@ -191,10 +209,14 @@ async function ensureProposedStatusColumn() {
 // deactivated/unapproved somehow, those two flags are repaired so the
 // account can always log in.
 const DEVELOPER_EMAIL = 'ruvpalado@gmail.com';
-// Default developer password can be overridden via env (DEVELOPER_PASSWORD)
-// so it isn't pinned in source. Only ever used when the account is first
-// created; an existing account's password is never overwritten here.
-const DEVELOPER_DEFAULT_PASSWORD = process.env.DEVELOPER_PASSWORD || 'DevAccess#2026!';
+// The developer password comes ONLY from the DEVELOPER_PASSWORD env var. If
+// it isn't set we generate a random, un-guessable one rather than falling back
+// to a value committed in source (a hardcoded default becomes the live
+// super-admin password the moment anyone reads the repo). This is used only
+// when the account is first created; an existing account's password is never
+// overwritten here, so a missing env var can't lock the developer out.
+const DEVELOPER_DEFAULT_PASSWORD = process.env.DEVELOPER_PASSWORD
+  || crypto.randomBytes(24).toString('base64url');
 
 // roles.key is a MySQL ENUM; on databases created before the 'developer'
 // role existed the column has to be widened before we can insert it (a plain
@@ -234,7 +256,10 @@ async function ensureDeveloperAccount() {
   });
 
   if (created) {
-    console.log(`[startup] Developer account ${DEVELOPER_EMAIL} created (default password -- change it via Forgot Password).`);
+    const how = process.env.DEVELOPER_PASSWORD
+      ? 'password taken from DEVELOPER_PASSWORD env'
+      : 'RANDOM one-time password (not logged) -- set your own via Forgot Password';
+    console.log(`[startup] Developer account ${DEVELOPER_EMAIL} created (${how}).`);
     return;
   }
 
