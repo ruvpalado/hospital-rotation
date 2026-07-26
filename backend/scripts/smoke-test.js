@@ -63,18 +63,31 @@ async function run() {
       method: 'POST', token,
       body: { physicianId: p.id, physicianName: p.fullName, siteDepartmentId: sd.id, blockId: block.id, startDate: block.start_date, endDate: block.end_date },
     });
-    const week = created.json?.weeks?.[0];
-    // 201 or 409 (already has this block) are both acceptable for the smoke run.
+    // 201 (created) or 409 (physician already has this block) are both fine.
     check('POST /schedules creates or reports duplicate', created.status === 201 || created.status === 409, `status ${created.status}`);
+
+    // Get a week to exercise the workflow: use the freshly created one, or --
+    // when the block already existed (409) -- reuse an existing week from this
+    // physician's schedule so propose/approve is always tested.
+    let week = created.json?.weeks?.[0];
+    if (!week) {
+      const mine = (await api('/schedules', { token })).json || [];
+      const existing = mine.find((s) => s.physician?.id === p.id && (s.weeks || []).length);
+      week = existing?.weeks?.[0];
+    }
+    check('A week is available to test the workflow', !!week, week ? `week ${week.id}` : 'none found');
 
     if (week) {
       const login2 = await api('/login', { method: 'POST', body: { email: p.email, password: 'Passw0rd!' } });
       const ptoken = login2.json?.token;
       if (ptoken) {
-        const prop = await api(`/schedules/weeks/${week.id}/propose`, { method: 'PATCH', token: ptoken, body: { status: 'attended' } });
-        check('Physician can propose a week status', prop.status === 200 && prop.json?.week?.proposed_status === 'attended');
+        // Propose a status different from the current one so it's a real
+        // proposal (proposing the current value is treated as a no-op).
+        const target = week.status === 'attended' ? 'absent' : 'attended';
+        const prop = await api(`/schedules/weeks/${week.id}/propose`, { method: 'PATCH', token: ptoken, body: { status: target } });
+        check('Physician can propose a week status', prop.status === 200 && prop.json?.week?.proposed_status === target);
         const appr = await api(`/schedules/weeks/${week.id}/approve`, { method: 'POST', token, body: { approve: true } });
-        check('Admin can approve, official status updates', appr.status === 200 && appr.json?.week?.status === 'attended' && appr.json?.week?.proposed_status === null);
+        check('Admin can approve, official status updates', appr.status === 200 && appr.json?.week?.status === target && appr.json?.week?.proposed_status === null);
         check('Approval records approver id', !!appr.json?.week?.approved_by_id);
       } else {
         check('Physician login for workflow', false, 'could not log in as physician (seed password?)');
