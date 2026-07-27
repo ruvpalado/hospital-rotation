@@ -1,7 +1,7 @@
 const { Op } = require('sequelize');
 const {
   User, Role, Site, Department, SiteDepartment, Block,
-  RotationAssignment, RotationWeek, ChangeRequest, Notification, AuditLog,
+  RotationAssignment, RotationWeek, ChangeRequest, Notification, AuditLog, PhysicianRoster,
 } = require('../models');
 const { isRotationComplete, countAttendedWeeks, deriveAssignmentStatus } = require('../utils/rotationRules');
 
@@ -16,13 +16,15 @@ async function getPhysicianRoleId() {
   _physicianRoleId = role ? role.id : -1;
   return _physicianRoleId;
 }
-/** siteId, when provided, scopes the physician count/list to physicians
- * whose home_site_id matches -- used by the Hospital Administrator role so
- * its KPIs only reflect physicians based at that one hospital. */
-async function countPhysicians(siteId) {
-  const where = { role_id: await getPhysicianRoleId() };
-  if (siteId) where.home_site_id = siteId;
-  return User.count({ where });
+/**
+ * Total physician count = the uploaded Physician List (roster). The roster is
+ * the source of truth for who the physicians are (they are name-only entries,
+ * not login accounts), so this updates automatically as names are added or
+ * removed. The roster is not site-scoped, so siteId does not apply to the
+ * denominator -- site scoping still narrows the assignment numerator elsewhere.
+ */
+async function countPhysicians() {
+  return PhysicianRoster.count();
 }
 async function listPhysicians(siteId) {
   const where = { role_id: await getPhysicianRoleId() };
@@ -75,10 +77,15 @@ async function rotationCoverageRate(blockId, siteId) {
     await getAssignmentsWithWeeks(blockId ? { block_id: blockId } : {}),
     siteId
   );
-  // Free-typed physician names with no matching account (physician_id null)
-  // aren't tied to a real physician, so they can't count toward "physicians
-  // covered" -- exclude them from the distinct count.
-  const distinctPhysicians = new Set(assignments.filter((a) => a.physician_id != null).map((a) => a.physician_id));
+  // Physicians are identified by the roster name recorded on each assignment
+  // (physician_name), since the uploaded Physician List -- not login accounts
+  // -- is the source of truth. Count distinct non-empty names covered in the
+  // block (fall back to a linked account's name if physician_name is blank).
+  const distinctPhysicians = new Set(
+    assignments
+      .map((a) => (a.physician_name || a.physician?.full_name || '').trim().toLowerCase())
+      .filter((name) => name)
+  );
   const rate = physicianCountTotal > 0 ? (distinctPhysicians.size / physicianCountTotal) * 100 : 0;
   return { assignedPhysicians: distinctPhysicians.size, totalPhysicians: physicianCountTotal, ratePct: round(rate) };
 }
