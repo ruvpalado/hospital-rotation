@@ -3,6 +3,7 @@ const authenticate = require('../middleware/auth');
 const requireRole = require('../middleware/roles');
 const { requireDeveloperEmail } = requireRole;
 const withAudit = require('../middleware/auditLogger');
+const denyDeveloperWrite = require('../middleware/denyDeveloperWrite');
 const scheduleController = require('../controllers/scheduleController');
 
 router.get('/', authenticate, withAudit('view', 'schedule'), scheduleController.listSchedules);
@@ -32,8 +33,11 @@ router.post('/:id/approve', authenticate, requireRole('admin', 'dept_head'), wit
 // requests, weeks, assignments) without touching reference data.
 router.post('/clear-test-data', authenticate, requireRole('admin'), withAudit('delete', 'schedule'), scheduleController.clearTestData);
 
-// Restricted to the developer account only: permanently delete a single
-// rotation schedule (and its change requests / weekly attendance rows).
-router.delete('/:id', authenticate, requireDeveloperEmail, withAudit('delete', 'schedule'), scheduleController.deleteSchedule);
+// Schedule deletion is now DISABLED. The developer was previously the only
+// account allowed to delete a rotation schedule; per the "disable Delete in
+// the Developer account" requirement, denyDeveloperWrite blocks + audits the
+// developer here, and requireDeveloperEmail still blocks everyone else -- so
+// no account can remove scheduled records through this endpoint.
+router.delete('/:id', authenticate, denyDeveloperWrite('schedule'), requireDeveloperEmail, withAudit('delete', 'schedule'), scheduleController.deleteSchedule);
 
 module.exports = router;
