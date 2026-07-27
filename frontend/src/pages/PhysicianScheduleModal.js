@@ -23,6 +23,8 @@ export default function PhysicianScheduleModal({
   canProposeWeeks,     // physician viewing their own weeks: propose
   canEditSchedule,
   onEditSchedule,
+  canDeleteSchedule,   // developer only: delete without an edit path
+  onDeleteSchedule,
   onUpdateWeek,        // admin override / finalize
   onProposeWeek,       // physician proposes (awaits approval)
   onApproveWeek,       // admin approve(true)/reject(false) a proposal
@@ -59,7 +61,8 @@ export default function PhysicianScheduleModal({
     }
   };
 
-  const columnCount = canEditSchedule ? 7 : 6;
+  const showActions = canEditSchedule || canDeleteSchedule;
+  const columnCount = showActions ? 7 : 6;
 
   // Highest block this physician currently has -- the "+ Add Block" button
   // opens the Add Block form for the next block (highest + 1).
@@ -115,7 +118,7 @@ export default function PhysicianScheduleModal({
                       <th>Department</th>
                       <th>Block Status</th>
                       <th className="d-print-none">Weeks</th>
-                      {canEditSchedule && <th className="d-print-none"></th>}
+                      {showActions && <th className="d-print-none"></th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -136,17 +139,29 @@ export default function PhysicianScheduleModal({
                               {expandedId === s.id ? 'Hide' : 'Show'}
                             </button>
                           </td>
-                          {canEditSchedule && (
+                          {showActions && (
                             <td className="d-print-none">
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-primary"
-                                disabled={s.status === 'completed'}
-                                title={s.status === 'completed' ? 'Completed schedules can no longer be edited.' : 'Edit this schedule'}
-                                onClick={() => onEditSchedule(s)}
-                              >
-                                Edit
-                              </button>
+                              {canEditSchedule && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-primary"
+                                  disabled={s.status === 'completed'}
+                                  title={s.status === 'completed' ? 'Completed schedules can no longer be edited.' : 'Edit this schedule'}
+                                  onClick={() => onEditSchedule(s)}
+                                >
+                                  Edit
+                                </button>
+                              )}
+                              {canDeleteSchedule && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger"
+                                  title="Delete this schedule (developer only)"
+                                  onClick={() => onDeleteSchedule(s)}
+                                >
+                                  Delete
+                                </button>
+                              )}
                             </td>
                           )}
                         </tr>

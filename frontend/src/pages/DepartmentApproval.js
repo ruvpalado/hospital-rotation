@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 // Department Head / Admin: approve or reject pending change requests,
 // feeding the Change Request Rate and Approval Turnaround Time KPIs.
 export default function DepartmentApproval() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  // Developer is view-only on Program Administrator data: it can see the change
+  // requests but not resolve them (the backend blocks + audits this too).
+  const isDeveloper = user?.role === 'developer';
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,11 +47,14 @@ export default function DepartmentApproval() {
               <td><span className={`badge ${r.status === 'pending' ? 'bg-warning' : r.status === 'approved' ? 'bg-success' : 'bg-danger'}`}>{r.status}</span></td>
               <td>{new Date(r.requested_at).toLocaleString()}</td>
               <td>
-                {r.status === 'pending' && (
+                {r.status === 'pending' && !isDeveloper && (
                   <>
                     <button className="btn btn-sm btn-success me-1" onClick={() => resolve(r.id, 'approved')}>Approve</button>
                     <button className="btn btn-sm btn-danger" onClick={() => resolve(r.id, 'rejected')}>Reject</button>
                   </>
+                )}
+                {r.status === 'pending' && isDeveloper && (
+                  <span className="text-muted small">View only</span>
                 )}
               </td>
             </tr>

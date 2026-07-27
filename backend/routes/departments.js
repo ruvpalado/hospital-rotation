@@ -1,7 +1,11 @@
 const router = require('express').Router();
 const authenticate = require('../middleware/auth');
 const requireRole = require('../middleware/roles');
+const denyDeveloperWrite = require('../middleware/denyDeveloperWrite');
 const siteController = require('../controllers/siteController');
+
+// Developer Account -- view-only on reference data (departments).
+const denyDevDept = denyDeveloperWrite('department');
 
 // Public for the same reason as sites.js: the Registration form (pre-login)
 // needs to populate its Department dropdown.
@@ -9,11 +13,11 @@ router.get('/', siteController.listDepartments);
 
 // Admin-only maintenance action: rename a department by its code, e.g.
 // { "code": "CLINIC", "name": "GYNE Clinic" }.
-router.patch('/rename', authenticate, requireRole('admin'), siteController.renameDepartment);
+router.patch('/rename', authenticate, denyDevDept, requireRole('admin'), siteController.renameDepartment);
 
 // Admin-only maintenance action: rebuild Department + SiteDepartment tables
 // on the live database to match backend/seed/data.js (the authoritative
 // Site and Department guideline document), without touching users/sites.
-router.post('/sync', authenticate, requireRole('admin'), siteController.syncDepartments);
+router.post('/sync', authenticate, denyDevDept, requireRole('admin'), siteController.syncDepartments);
 
 module.exports = router;
