@@ -3,7 +3,14 @@ const authenticate = require('../middleware/auth');
 const requireRole = require('../middleware/roles');
 const { requireDeveloperEmail } = requireRole;
 const withAudit = require('../middleware/auditLogger');
+const denyDeveloperWrite = require('../middleware/denyDeveloperWrite');
 const userController = require('../controllers/userController');
+
+// Applied only to the destructive user-maintenance endpoints below
+// (cleanup/reset/seed/remove/sync). Day-to-day user management -- deactivate,
+// reactivate, Edit Role, and account approve/reject -- remains available to
+// the developer account.
+const denyDevUser = denyDeveloperWrite('user');
 
 // Only roles that assign/manage rotations need to browse or manage the user list.
 router.get('/', authenticate, requireRole('admin', 'scheduler', 'dept_head'), userController.list);
@@ -15,29 +22,32 @@ router.patch('/:id/role', authenticate, requireDeveloperEmail, userController.up
 
 // "Delete" a user account = deactivate (soft delete). Preserves rotation
 // history/audit logs tied to the account; see userController.deactivate.
+// User management is retained for the developer account: it may deactivate /
+// reactivate accounts (alongside its Edit Role and account approve/reject
+// tools). Only the destructive maintenance endpoints below stay blocked.
 router.delete('/:id', authenticate, requireRole('admin', 'scheduler'), withAudit('delete', 'user'), userController.deactivate);
 router.post('/:id/reactivate', authenticate, requireRole('admin', 'scheduler'), withAudit('edit', 'user'), userController.reactivate);
 
 // Admin-only maintenance action: hard-delete duplicate seed users, keeping
 // exactly one account per role.
-router.post('/cleanup-duplicates', authenticate, requireRole('admin'), userController.cleanupDuplicates);
+router.post('/cleanup-duplicates', authenticate, denyDevUser, requireRole('admin'), userController.cleanupDuplicates);
 
 // Admin-only maintenance action: wipe every user account and reprovision a
 // merged Master Scheduler/Admin account plus a developer account.
-router.post('/reset-all', authenticate, requireRole('admin'), userController.resetAllUsers);
+router.post('/reset-all', authenticate, denyDevUser, requireRole('admin'), userController.resetAllUsers);
 
 // Admin-only maintenance action: ensure one demo account exists per
 // non-admin role (scheduler, dept_head, physician, program_manager,
 // hospital_admin). Idempotent -- safe to call more than once.
-router.post('/seed-demo-accounts', authenticate, requireRole('admin'), userController.seedDemoAccounts);
+router.post('/seed-demo-accounts', authenticate, denyDevUser, requireRole('admin'), userController.seedDemoAccounts);
 
 // Admin-only maintenance action: permanently remove every demo account
 // (anything ending in .demo@obgyn-rotation.local). Idempotent.
-router.post('/remove-demo-accounts', authenticate, requireRole('admin'), userController.removeDemoAccounts);
+router.post('/remove-demo-accounts', authenticate, denyDevUser, requireRole('admin'), userController.removeDemoAccounts);
 
 // Admin-only maintenance action: add the approval_status column to the live
 // users table (see Account Creation Policy). Idempotent.
-router.post('/sync-approval-column', authenticate, requireRole('admin'), userController.syncApprovalColumn);
+router.post('/sync-approval-column', authenticate, denyDevUser, requireRole('admin'), userController.syncApprovalColumn);
 
 // Account Creation Policy:
 //  - Any admin can view the pending list and approve/reject NON-admin

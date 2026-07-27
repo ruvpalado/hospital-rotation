@@ -38,7 +38,10 @@ export default function Navbar() {
   const isDeveloper = user.email === DEVELOPER_EMAIL;
   // Developer is treated as admin throughout the UI (superset role).
   const isAdmin = ['admin', 'program_administrator', 'developer'].includes(user.role);
-  const canAddSchedule = user.role === 'scheduler' || isAdmin;
+  // Add Schedule stays VISIBLE for the developer but DISABLED (the account is
+  // view-only on Program Administrator data; the backend blocks it too).
+  const showAddSchedule = user.role === 'scheduler' || isAdmin;
+  const canAddSchedule = showAddSchedule && user.role !== 'developer';
 
   const toggleLanguage = () => {
     const next = i18n.language === 'en' ? 'ar' : 'en';
@@ -61,7 +64,7 @@ export default function Navbar() {
       items: [
         { to: '/schedules', icon: '📋', label: t('viewSchedules'), show: true },
         { to: '/my-attendance', icon: '📝', label: t('myAttendance'), show: user.role === 'physician' },
-        { to: '/schedules?add=1', icon: '➕', label: t('addSchedule'), show: canAddSchedule },
+        { to: '/schedules?add=1', icon: '➕', label: t('addSchedule'), show: showAddSchedule, disabled: !canAddSchedule },
         { to: '/physician-list', icon: '🧑‍⚕️', label: t('physicianList'), show: isDeveloper },
       ],
     },
@@ -112,15 +115,27 @@ export default function Navbar() {
               </button>
               <div className="nav-dropdown-menu">
                 {visibleItems.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `nav-dropdown-item${isActive && !item.to.includes('?') ? ' active' : ''}`
-                    }
-                  >
-                    <span className="nav-icon">{item.icon}</span>{item.label}
-                  </NavLink>
+                  item.disabled ? (
+                    <span
+                      key={item.to}
+                      className="nav-dropdown-item disabled text-muted"
+                      style={{ cursor: 'not-allowed', opacity: 0.55 }}
+                      aria-disabled="true"
+                      title="The developer account is view-only and cannot add schedules."
+                    >
+                      <span className="nav-icon">{item.icon}</span>{item.label}
+                    </span>
+                  ) : (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={({ isActive }) =>
+                        `nav-dropdown-item${isActive && !item.to.includes('?') ? ' active' : ''}`
+                      }
+                    >
+                      <span className="nav-icon">{item.icon}</span>{item.label}
+                    </NavLink>
+                  )
                 ))}
               </div>
             </li>

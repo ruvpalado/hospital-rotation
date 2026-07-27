@@ -47,14 +47,20 @@ export default function ScheduleViewer() {
   // The Master Scheduler can change a week's attendance status; other roles
   // see schedules read-only. Admin is included since the merged admin
   // account also holds Master Scheduler permissions.
-  const elevated = user?.role === 'admin' || user?.role === 'program_administrator' || user?.role === 'developer';
-  const canEditWeeks = user?.role === 'scheduler' || elevated;
-  const canAddSchedule = user?.role === 'scheduler' || elevated;
-  // Developer Account – Schedule Module Restriction: the developer can view
-  // schedules but not edit them, so the per-schedule Edit button is hidden for
-  // that account (the backend also blocks PUT /schedules/:id and audits the
-  // attempt -- see backend/middleware/restrictScheduleEdit.js).
-  const canEditSchedule = (user?.role === 'scheduler' || elevated) && user?.role !== 'developer';
+  const isDeveloper = user?.role === 'developer';
+  const elevated = user?.role === 'admin' || user?.role === 'program_administrator' || isDeveloper;
+  // Developer Account -- view-only on Program Administrator data: it may view
+  // schedules but not add, edit, or change week status. The backend blocks and
+  // audits these too (see backend/middleware/denyDeveloperWrite.js). The one
+  // retained schedule tool is delete, which is developer-exclusive.
+  const canEditWeeks = (user?.role === 'scheduler' || elevated) && !isDeveloper;
+  // Add Schedule stays VISIBLE for the developer but DISABLED: showAddSchedule
+  // controls visibility (includes the developer), canAddSchedule controls
+  // whether it's actionable (excludes the developer; backend blocks it too).
+  const showAddSchedule = user?.role === 'scheduler' || elevated;
+  const canAddSchedule = showAddSchedule && !isDeveloper;
+  const canEditSchedule = (user?.role === 'scheduler' || elevated) && !isDeveloper;
+  const canDeleteSchedule = isDeveloper;
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [viewingPhysician, setViewingPhysician] = useState(null);
   // Id of a just-created "next block" row, briefly highlighted in the modal.
@@ -93,6 +99,18 @@ export default function ScheduleViewer() {
   const handleScheduleSaved = () => {
     setEditingSchedule(null);
     load();
+  };
+
+  // Developer-exclusive: permanently delete a rotation schedule (no edit path).
+  const deleteSchedule = async (schedule) => {
+    const who = schedule.physician?.full_name || 'this physician';
+    if (!window.confirm(`Permanently delete this rotation schedule for ${who}? This cannot be undone.`)) return;
+    try {
+      await api.delete(`/schedules/${schedule.id}`);
+      load();
+    } catch (err) {
+      window.alert(err.response?.data?.error || 'Failed to delete schedule.');
+    }
   };
 
   // Admin override / finalize a week's official status.
@@ -208,8 +226,14 @@ export default function ScheduleViewer() {
         {appliedSearch && (
           <button type="button" className="btn btn-outline-secondary" onClick={clearSearch}>Clear</button>
         )}
-        {canAddSchedule && (
-          <button type="button" className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+        {showAddSchedule && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setShowAddModal(true)}
+            disabled={!canAddSchedule}
+            title={!canAddSchedule ? 'The developer account is view-only and cannot add schedules.' : undefined}
+          >
             + Add Schedule
           </button>
         )}
@@ -243,6 +267,8 @@ export default function ScheduleViewer() {
           canProposeWeeks={canProposeWeeks}
           canEditSchedule={canEditSchedule}
           onEditSchedule={(s) => setEditingSchedule(s)}
+          canDeleteSchedule={canDeleteSchedule}
+          onDeleteSchedule={deleteSchedule}
           onUpdateWeek={updateWeek}
           onProposeWeek={proposeWeek}
           onApproveWeek={approveWeek}
