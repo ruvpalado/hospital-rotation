@@ -39,10 +39,11 @@ router.post('/:id/approve', authenticate, denyDevSchedule, requireRole('admin', 
 // requests, weeks, assignments) without touching reference data.
 router.post('/clear-test-data', authenticate, denyDevSchedule, requireRole('admin'), withAudit('delete', 'schedule'), scheduleController.clearTestData);
 
-// Restricted to the developer account only: permanently delete a single
-// rotation schedule (and its change requests / weekly attendance rows). This
-// is an intentional developer-exclusive maintenance tool, so it is NOT covered
-// by the view-only restriction above.
-router.delete('/:id', authenticate, requireDeveloperEmail, withAudit('delete', 'schedule'), scheduleController.deleteSchedule);
+// Schedule deletion is DISABLED. The developer was previously the only account
+// allowed to delete a rotation schedule; per the "disable Delete in the
+// Developer account" requirement, denyDeveloperWrite blocks + audits the
+// developer here, and requireDeveloperEmail still blocks everyone else -- so
+// no account can remove scheduled records through this endpoint.
+router.delete('/:id', authenticate, denyDeveloperWrite('schedule'), requireDeveloperEmail, withAudit('delete', 'schedule'), scheduleController.deleteSchedule);
 
 module.exports = router;

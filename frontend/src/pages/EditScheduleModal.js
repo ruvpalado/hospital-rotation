@@ -265,8 +265,14 @@ export default function EditScheduleModal({ schedule, onClose, onSaved }) {
             <div className="modal-footer justify-content-between">
               <div>
                 {canDelete && (
-                  <button type="button" className="btn btn-outline-danger" onClick={handleDelete} disabled={deleting || submitting}>
-                    {deleting ? 'Deleting...' : 'Delete Schedule'}
+                  <button
+                    type="button"
+                    className="btn btn-outline-danger"
+                    onClick={handleDelete}
+                    disabled
+                    title="Schedule deletion is disabled — scheduled records cannot be removed."
+                  >
+                    Delete Schedule
                   </button>
                 )}
               </div>
