@@ -101,18 +101,6 @@ export default function ScheduleViewer() {
     load();
   };
 
-  // Developer-exclusive: permanently delete a rotation schedule (no edit path).
-  const deleteSchedule = async (schedule) => {
-    const who = schedule.physician?.full_name || 'this physician';
-    if (!window.confirm(`Permanently delete this rotation schedule for ${who}? This cannot be undone.`)) return;
-    try {
-      await api.delete(`/schedules/${schedule.id}`);
-      load();
-    } catch (err) {
-      window.alert(err.response?.data?.error || 'Failed to delete schedule.');
-    }
-  };
-
   // Admin override / finalize a week's official status.
   const updateWeek = async (weekId, status) => {
     await api.patch(`/schedules/weeks/${weekId}`, { status });
@@ -268,7 +256,6 @@ export default function ScheduleViewer() {
           canEditSchedule={canEditSchedule}
           onEditSchedule={(s) => setEditingSchedule(s)}
           canDeleteSchedule={canDeleteSchedule}
-          onDeleteSchedule={deleteSchedule}
           onUpdateWeek={updateWeek}
           onProposeWeek={proposeWeek}
           onApproveWeek={approveWeek}
