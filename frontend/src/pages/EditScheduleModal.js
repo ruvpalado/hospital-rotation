@@ -20,6 +20,10 @@ export default function EditScheduleModal({ schedule, onClose, onSaved }) {
   const { user } = useAuth();
   // Schedule deletion is enabled for the Program Administrator and Developer.
   const canDelete = user?.role === 'program_administrator' || user?.role === 'developer';
+  // The developer is view-only on schedule edits: it may open this modal (to
+  // delete) but the form is read-only and Save is disabled (the backend also
+  // blocks developer edits). The Program Administrator can edit normally.
+  const isReadOnly = user?.role === 'developer';
 
   const [physicians, setPhysicians] = useState([]);
   const [roster, setRoster] = useState([]);
@@ -126,6 +130,7 @@ export default function EditScheduleModal({ schedule, onClose, onSaved }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isReadOnly) return; // developer: view-only, editing is disabled
     setError('');
     if (!physicianInput.trim() || !siteDepartmentId || !blockId || !startDate || !endDate) {
       setError('All fields are required.');
@@ -173,6 +178,12 @@ export default function EditScheduleModal({ schedule, onClose, onSaved }) {
             </div>
             <div className="modal-body">
               {error && <div className="alert alert-danger py-2">{error}</div>}
+              {isReadOnly && (
+                <div className="alert alert-info py-2">
+                  View only — the developer account can delete this schedule but cannot edit it.
+                </div>
+              )}
+              <fieldset disabled={isReadOnly} style={{ border: 0, padding: 0, margin: 0, minInlineSize: 'auto' }}>
 
               <div className="mb-3">
                 <label className="form-label">Physician</label>
@@ -262,6 +273,7 @@ export default function EditScheduleModal({ schedule, onClose, onSaved }) {
                 Recorded weekly attendance is kept. If you change the block or start date, the week
                 dates are re-aligned to the new schedule automatically.
               </p>
+              </fieldset>
             </div>
             <div className="modal-footer justify-content-between">
               <div>
@@ -273,9 +285,11 @@ export default function EditScheduleModal({ schedule, onClose, onSaved }) {
               </div>
               <div className="d-flex gap-2">
                 <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting || deleting}>Cancel</button>
+                {!isReadOnly && (
                 <button type="submit" className="btn btn-primary" disabled={submitting || deleting}>
                   {submitting ? 'Saving...' : 'Save Changes'}
                 </button>
+                )}
               </div>
             </div>
           </form>
