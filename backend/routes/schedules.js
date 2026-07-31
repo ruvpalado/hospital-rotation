@@ -19,8 +19,11 @@ router.get('/:id', authenticate, withAudit('view', 'schedule'), scheduleControll
 // included here too.
 router.post('/', authenticate, denyDevSchedule, requireRole('scheduler', 'admin'), withAudit('create', 'schedule'), scheduleController.createSchedule);
 // Edit an existing rotation schedule (physician, site/department, block,
-// dates) -- same audience as create, minus the view-only developer account.
-router.put('/:id', authenticate, denyDevSchedule, requireRole('scheduler', 'admin'), withAudit('edit', 'schedule'), scheduleController.updateSchedule);
+// dates). Available to schedulers/admins and the Program Administrator, and to
+// the Developer (which passes as an admin superset) -- the Developer keeps the
+// Edit button and can edit schedules; only the in-modal Delete button was
+// removed.
+router.put('/:id', authenticate, requireRole('scheduler', 'admin'), withAudit('edit', 'schedule'), scheduleController.updateSchedule);
 // The Master Scheduler may change a week's attendance status (attended /
 // maternity_leave / annual_leave / absent) -- dept heads can view schedules
 // but not edit attendance directly. Admin included for the same reason as

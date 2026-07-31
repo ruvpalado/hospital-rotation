@@ -59,9 +59,10 @@ export default function ScheduleViewer() {
   // whether it's actionable (excludes the developer; backend blocks it too).
   const showAddSchedule = user?.role === 'scheduler' || elevated;
   const canAddSchedule = showAddSchedule && !isDeveloper;
-  // Developer is view-only on schedule edits, so it does not open the Edit
-  // Rotation Schedule modal. Its delete path is the per-row Delete button.
-  const canEditSchedule = (user?.role === 'scheduler' || elevated) && !isDeveloper;
+  // Edit is available to schedulers/admins, the Program Administrator, and the
+  // Developer (elevated). The Edit Rotation Schedule modal no longer contains a
+  // Delete button -- deletion is done via the per-row Delete button below.
+  const canEditSchedule = user?.role === 'scheduler' || elevated;
   // Schedule deletion is enabled for the Program Administrator and Developer.
   const canDeleteSchedule = user?.role === 'program_administrator' || isDeveloper;
   const [editingSchedule, setEditingSchedule] = useState(null);
