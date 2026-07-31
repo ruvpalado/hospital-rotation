@@ -21,7 +21,7 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'replace_with_a_long_r
 
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const { sequelize, User, Role, RotationAssignment, Block } = require('./models');
+const { sequelize, User, Role, RotationAssignment, Block, Site, Department, SiteDepartment } = require('./models');
 const { sendUpcomingRotationReminder } = require('./services/notificationService');
 
 const authRoutes = require('./routes/auth');
@@ -307,6 +307,36 @@ async function ensureProgramAdministratorRole() {
   }
 }
 
+// "Leave / interruption" pseudo-sites so a rotation block can be recorded as
+// Annual Leave, Maternity Leave, or Interruption from the Add Rotation Schedule
+// form. Each is provisioned as a Site paired with a matching Department (via a
+// SiteDepartment row), so it flows through the normal schedule-creation path
+// with no controller changes. High capacity so it never shows as "full".
+// Idempotent -- findOrCreate leaves existing rows untouched.
+async function ensureLeaveSites() {
+  const LEAVE_ENTRIES = [
+    { name: 'Annual Leave', code: 'AL' },
+    { name: 'Maternity Leave', code: 'ML' },
+    { name: 'Interruption', code: 'INT' },
+  ];
+  const LEAVE_COLOR = '#9E9E9E';
+  for (const entry of LEAVE_ENTRIES) {
+    const [site] = await Site.findOrCreate({
+      where: { short_code: entry.code },
+      defaults: { name: entry.name, short_code: entry.code, color_hex: LEAVE_COLOR },
+    });
+    const [dept] = await Department.findOrCreate({
+      where: { code: entry.code },
+      defaults: { code: entry.code, name: entry.name, color_hex: LEAVE_COLOR, is_critical_unit: false },
+    });
+    await SiteDepartment.findOrCreate({
+      where: { site_id: site.id, department_id: dept.id },
+      defaults: { site_id: site.id, department_id: dept.id, capacity_per_block: 999 },
+    });
+  }
+  console.log('[startup] Ensured Annual Leave / Maternity Leave / Interruption site options');
+}
+
 async function start() {
   try {
     await sequelize.authenticate();
@@ -317,6 +347,7 @@ async function start() {
     await ensureProposedStatusColumn();
     await ensureDeveloperAccount();
     await ensureProgramAdministratorRole();
+    await ensureLeaveSites();
     app.listen(PORT, () => console.log(`Hospital Rotation API listening on port ${PORT}`));
   } catch (err) {
     console.error('Failed to start server:', err);

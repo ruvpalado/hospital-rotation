@@ -80,9 +80,13 @@ export default function AddScheduleModal({ onClose, onCreated }) {
   };
 
   const handleSiteChange = (e) => {
-    setSiteId(e.target.value);
-    // The previously selected department may not exist at the new site.
-    setSiteDepartmentId('');
+    const newSiteId = e.target.value;
+    setSiteId(newSiteId);
+    // Auto-select the department when the site offers exactly one (e.g. the
+    // Annual Leave / Maternity Leave / Interruption options); otherwise clear
+    // it since the previous choice may not exist at the new site.
+    const opts = siteDepartments.filter((sd) => sd.Site && String(sd.Site.id) === String(newSiteId));
+    setSiteDepartmentId(opts.length === 1 ? String(opts[0].id) : '');
   };
 
   // Block Assignment Control: blocks this physician already has a schedule
