@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 const cron = require('node-cron');
 
 // Fail-loud on a missing/placeholder JWT secret -- tokens signed with a
@@ -67,7 +68,21 @@ app.use(cors({
 app.use(express.json());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
+// Health check stays un-throttled (Railway polls it frequently).
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+
+// Global flood protection across the whole API, on top of the stricter
+// per-endpoint auth limiter in routes/auth.js. Generous for normal use but
+// blunts request flooding / scraping. Keyed by client IP (trust proxy is set
+// above so this reads the real address behind Railway's proxy).
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // requests per IP per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down and try again shortly.' },
+});
+app.use('/api', apiLimiter);
 
 app.use('/api', authRoutes);
 app.use('/api/sites', siteRoutes);

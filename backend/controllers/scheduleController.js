@@ -389,8 +389,17 @@ exports.approveSchedule = async (req, res) => {
  */
 exports.deleteSchedule = async (req, res) => {
   try {
-    const assignment = await RotationAssignment.findByPk(req.params.id);
+    const assignment = await RotationAssignment.findByPk(req.params.id, {
+      include: [{ model: RotationWeek, as: 'weeks' }],
+    });
     if (!assignment) return res.status(404).json({ error: 'Not found' });
+
+    // A completed rotation is part of the physician's training record and must
+    // not be removed -- enforced here so the UI's disabled Delete button can't
+    // be bypassed via a direct API call.
+    if (deriveAssignmentStatus(assignment.weeks || []) === 'completed') {
+      return res.status(400).json({ error: 'Completed rotations cannot be deleted.' });
+    }
 
     await ChangeRequest.destroy({ where: { rotation_assignment_id: assignment.id } });
     await RotationWeek.destroy({ where: { rotation_assignment_id: assignment.id } });

@@ -156,7 +156,8 @@ export default function PhysicianScheduleModal({
                                 <button
                                   type="button"
                                   className="btn btn-sm btn-outline-danger"
-                                  title="Delete this schedule"
+                                  disabled={s.status === 'completed'}
+                                  title={s.status === 'completed' ? 'Completed rotations cannot be deleted.' : 'Delete this schedule'}
                                   onClick={() => onDeleteSchedule(s)}
                                 >
                                   Delete
