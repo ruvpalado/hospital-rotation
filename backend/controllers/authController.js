@@ -10,6 +10,22 @@ const MAX_RESET_ATTEMPTS = 5;
 // Minimum password length, enforced consistently on register and reset.
 const MIN_PASSWORD_LENGTH = 8;
 
+/**
+ * Password policy: at least MIN_PASSWORD_LENGTH characters, and a mix of at
+ * least one lowercase letter, one uppercase letter, and one digit. Returns an
+ * error message string if the password is too weak, or null if it passes.
+ * Applied on both registration and password reset.
+ */
+function passwordPolicyError(password) {
+  if (!password || password.length < MIN_PASSWORD_LENGTH) {
+    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+  }
+  if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+    return 'Password must include at least one lowercase letter, one uppercase letter, and one number.';
+  }
+  return null;
+}
+
 function generateResetCode() {
   // 6-digit numeric code, zero-padded (e.g. "042917"). Never stored raw --
   // only its bcrypt hash is persisted (see forgotPassword below).
@@ -44,9 +60,8 @@ exports.register = async (req, res) => {
     if (!fullName || !email || !password || !roleKey) {
       return res.status(400).json({ error: 'fullName, email, password, roleKey are required' });
     }
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
-    }
+    const pwError = passwordPolicyError(password);
+    if (pwError) return res.status(400).json({ error: pwError });
     // 'developer' is an internal, provision-only role -- it must never be
     // requestable through self-registration (it's also not offered in the
     // Register form's role dropdown).
@@ -235,9 +250,8 @@ exports.resetPassword = async (req, res) => {
     if (!email || !code || !newPassword) {
       return res.status(400).json({ error: 'email, code, and newPassword are required' });
     }
-    if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
-    }
+    const pwError = passwordPolicyError(newPassword);
+    if (pwError) return res.status(400).json({ error: pwError });
 
     const invalid = { error: 'Invalid or expired code.' };
     const user = await User.findOne({ where: { email } });

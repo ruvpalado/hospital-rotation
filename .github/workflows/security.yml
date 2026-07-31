@@ -1,0 +1,53 @@
+name: Security
+
+# Automated security testing in CI: dependency auditing (npm audit) and static
+# analysis (CodeQL / SAST). Runs on pushes and PRs to the main branches, plus a
+# weekly scheduled scan to catch newly-disclosed advisories.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 6 * * 1' # Mondays 06:00 UTC
+
+jobs:
+  npm-audit:
+    name: npm audit (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      # Resolve the dependency tree without a full install, then audit. Fails
+      # the build on HIGH or CRITICAL advisories (moderate/low are reported but
+      # don't block).
+      - name: Resolve lockfile
+        working-directory: ${{ matrix.dir }}
+        run: npm install --package-lock-only
+      - name: npm audit (high+)
+        working-directory: ${{ matrix.dir }}
+        run: npm audit --audit-level=high
+
+  codeql:
+    name: CodeQL (SAST)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3

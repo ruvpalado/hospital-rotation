@@ -1,0 +1,24 @@
+version: 2
+# Automated patch management: Dependabot opens PRs for outdated / vulnerable
+# dependencies weekly, for the backend and frontend npm projects and for the
+# GitHub Actions used in workflows.
+updates:
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels: [dependencies, backend]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels: [dependencies, frontend]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencies, ci]

@@ -57,8 +57,8 @@ export default function ForgotPasswordModal({ onClose }) {
   const handleResetPassword = async (e) => {
     e.preventDefault();
     setError('');
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters.');
+    if (newPassword.length < 8 || !/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      setError('Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number.');
       return;
     }
     if (newPassword !== confirmPassword) {

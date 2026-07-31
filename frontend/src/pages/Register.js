@@ -133,6 +133,7 @@ export default function Register() {
           <div className="mb-2">
             <label className="form-label">{t('password')}</label>
             <input type="password" className="form-control" value={form.password} onChange={handleChange('password')} required />
+            <div className="form-text">At least 8 characters, including an uppercase letter, a lowercase letter, and a number.</div>
           </div>
           <div className="mb-2">
             <label className="form-label">Phone</label>
