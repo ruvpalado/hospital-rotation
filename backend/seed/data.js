@@ -54,7 +54,7 @@ const DEPARTMENTS = [
 const SITE_DEPARTMENTS = {
   SQUH: ['PNW', 'ANW', 'US', 'DS', 'OT', 'EM', 'GOBG & HRP', 'MFM & HRP', 'RE & INF', 'RE & MIS', 'URGY', 'CLINIC', 'GENETICS', 'RESEARCH', 'ICU', 'NICU'],
   RH: ['CLINIC', 'MM & HRP', 'GY-ONC', 'DM & HRP', 'FM & HRP', 'PNW', 'ANW', 'DS', 'US', 'ASSESSMENT', 'GYN WARD', 'OT', 'RESEARCH', 'EM', 'ICU', 'NICU', 'GYNE'],
-  KH: ['ADMISSION', 'ANW', 'PNW', 'GYN WARD', 'MM & HRP', 'REI, INF & MIS', 'FM & HRP', 'RESEARCH', 'EM', 'US', 'ICU', 'CLINIC', 'DS'],
+  KH: ['ADMISSION', 'ANW', 'PNW', 'GYN WARD', 'MM & HRP', 'REI, INF & MIS', 'FM & HRP', 'RESEARCH', 'EM', 'US', 'ICU', 'CLINIC', 'DS', 'OT'],
   NH: ['DS'],
   SOHAR: ['GYNE'],
   MCMSS: ['GYNE', 'DS', 'ANC', 'RESEARCH'],

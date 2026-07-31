@@ -356,9 +356,10 @@ async function ensureLeaveSites() {
 // WITHOUT the destructive full rebuild that /api/departments/sync performs
 // (which deletes every SiteDepartment and the schedules referencing them).
 // Idempotent: findOrCreate leaves existing links untouched. Currently ensures
-// CLINIC (GYNE Clinic) and DS (Delivery Suite) are offered at Khoula Hospital.
+// CLINIC (GYNE Clinic), DS (Delivery Suite) and OT (Operating Theatre) are
+// offered at Khoula Hospital.
 async function ensureSiteDepartmentLinks() {
-  const LINKS = [{ site: 'KH', departments: ['CLINIC', 'DS'] }];
+  const LINKS = [{ site: 'KH', departments: ['CLINIC', 'DS', 'OT'] }];
   for (const { site: siteCode, departments } of LINKS) {
     const site = await Site.findOne({ where: { short_code: siteCode } });
     if (!site) continue;
@@ -371,7 +372,7 @@ async function ensureSiteDepartmentLinks() {
       });
     }
   }
-  console.log('[startup] Ensured CLINIC and DS departments at Khoula Hospital');
+  console.log('[startup] Ensured CLINIC, DS and OT departments at Khoula Hospital');
 }
 
 async function start() {
