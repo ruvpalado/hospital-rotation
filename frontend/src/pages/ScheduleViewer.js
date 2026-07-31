@@ -60,7 +60,8 @@ export default function ScheduleViewer() {
   const showAddSchedule = user?.role === 'scheduler' || elevated;
   const canAddSchedule = showAddSchedule && !isDeveloper;
   const canEditSchedule = (user?.role === 'scheduler' || elevated) && !isDeveloper;
-  const canDeleteSchedule = isDeveloper;
+  // Schedule deletion is enabled for the Program Administrator and Developer.
+  const canDeleteSchedule = user?.role === 'program_administrator' || isDeveloper;
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [viewingPhysician, setViewingPhysician] = useState(null);
   // Id of a just-created "next block" row, briefly highlighted in the modal.
@@ -99,6 +100,18 @@ export default function ScheduleViewer() {
   const handleScheduleSaved = () => {
     setEditingSchedule(null);
     load();
+  };
+
+  // Program Administrator / Developer: permanently delete a rotation schedule.
+  const deleteSchedule = async (schedule) => {
+    const who = schedule.physician?.full_name || 'this physician';
+    if (!window.confirm(`Permanently delete this rotation schedule for ${who}? This cannot be undone.`)) return;
+    try {
+      await api.delete(`/schedules/${schedule.id}`);
+      load();
+    } catch (err) {
+      window.alert(err.response?.data?.error || 'Failed to delete schedule.');
+    }
   };
 
   // Admin override / finalize a week's official status.
@@ -256,6 +269,7 @@ export default function ScheduleViewer() {
           canEditSchedule={canEditSchedule}
           onEditSchedule={(s) => setEditingSchedule(s)}
           canDeleteSchedule={canDeleteSchedule}
+          onDeleteSchedule={deleteSchedule}
           onUpdateWeek={updateWeek}
           onProposeWeek={proposeWeek}
           onApproveWeek={approveWeek}

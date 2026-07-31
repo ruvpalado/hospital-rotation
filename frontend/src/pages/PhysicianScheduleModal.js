@@ -23,7 +23,8 @@ export default function PhysicianScheduleModal({
   canProposeWeeks,     // physician viewing their own weeks: propose
   canEditSchedule,
   onEditSchedule,
-  canDeleteSchedule,   // developer: show the Delete button but disabled (deletion is blocked)
+  canDeleteSchedule,   // Program Administrator / Developer: delete a schedule
+  onDeleteSchedule,
   onUpdateWeek,        // admin override / finalize
   onProposeWeek,       // physician proposes (awaits approval)
   onApproveWeek,       // admin approve(true)/reject(false) a proposal
@@ -155,8 +156,8 @@ export default function PhysicianScheduleModal({
                                 <button
                                   type="button"
                                   className="btn btn-sm btn-outline-danger"
-                                  disabled
-                                  title="Schedule deletion is disabled for the developer account."
+                                  title="Delete this schedule"
+                                  onClick={() => onDeleteSchedule(s)}
                                 >
                                   Delete
                                 </button>

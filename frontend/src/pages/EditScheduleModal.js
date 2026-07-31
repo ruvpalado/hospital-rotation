@@ -18,7 +18,8 @@ import { useAuth } from '../context/AuthContext';
  */
 export default function EditScheduleModal({ schedule, onClose, onSaved }) {
   const { user } = useAuth();
-  const canDelete = user?.email === 'ruvpalado@gmail.com';
+  // Schedule deletion is enabled for the Program Administrator and Developer.
+  const canDelete = user?.role === 'program_administrator' || user?.role === 'developer';
 
   const [physicians, setPhysicians] = useState([]);
   const [roster, setRoster] = useState([]);
@@ -265,14 +266,8 @@ export default function EditScheduleModal({ schedule, onClose, onSaved }) {
             <div className="modal-footer justify-content-between">
               <div>
                 {canDelete && (
-                  <button
-                    type="button"
-                    className="btn btn-outline-danger"
-                    onClick={handleDelete}
-                    disabled
-                    title="Schedule deletion is disabled — scheduled records cannot be removed."
-                  >
-                    Delete Schedule
+                  <button type="button" className="btn btn-outline-danger" onClick={handleDelete} disabled={deleting || submitting}>
+                    {deleting ? 'Deleting...' : 'Delete Schedule'}
                   </button>
                 )}
               </div>
