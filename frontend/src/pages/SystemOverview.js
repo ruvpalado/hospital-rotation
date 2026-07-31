@@ -18,6 +18,58 @@ const ROLES = [
   ['Physician', 'Personal view: individual rotation progress, specialty exposure, upcoming rotations, and self-reported weekly attendance.'],
 ];
 
+// How each module behaves per role. Kept faithful to the current access rules
+// (RBAC middleware + route gating). "PA" = Program Administrator.
+const MODULE_ACCESS = [
+  ['Dashboard', 'Loads automatically based on the signed-in role.', [
+    ['PA / Program Manager / Developer', 'Full hospital-wide KPI dashboard.'],
+    ['Hospital Administrator', 'Same KPI set, scoped to their hospital.'],
+    ['Department Head', 'Department-level coverage, equity, and approvals.'],
+    ['Physician', 'Personal progress, specialty exposure, and upcoming rotations.'],
+  ]],
+  ['Schedules', 'View and manage physician rotation assignments by block, site, and department.', [
+    ['Program Administrator', 'Full: view, add, edit, delete (except completed), set & approve weekly attendance.'],
+    ['Developer', 'View, edit, and delete (except completed). Cannot add schedules or change weekly attendance.'],
+    ['Program Manager / Hospital Administrator / Department Head', 'View only.'],
+    ['Physician', 'Views their own schedule; proposes weekly attendance via My Attendance.'],
+  ]],
+  ['Approvals', 'Two flows: Department Approval (rotation change requests) and User Approval (pending registrations).', [
+    ['Program Administrator', 'Resolves change requests and approves/rejects account requests.'],
+    ['Department Head', 'Resolves change requests for their department.'],
+    ['Developer', 'Views both; approves/rejects accounts (required for Program Administrator account requests); cannot resolve change requests.'],
+    ['Physician / others', 'No approval access.'],
+  ]],
+  ['Reports', 'On-demand KPI reports; content is scoped to the role.', [
+    ['PA / Program Manager / Developer', 'Full hospital-wide report set.'],
+    ['Hospital Administrator', 'Same set, scoped to their hospital.'],
+    ['Department Head / Physician', 'Scoped to their department / themselves.'],
+  ]],
+  ['Notifications', 'Registration, approval, and upcoming-rotation messages.', [
+    ['All roles', 'See their own notifications.'],
+    ['Program Administrator', 'Can also view all notifications.'],
+  ]],
+  ['Users', 'User account management.', [
+    ['Program Administrator', 'View accounts; deactivate / reactivate; approve / reject.'],
+    ['Developer', 'All of the above, plus Edit Role (developer-only). Cannot run the destructive maintenance actions.'],
+    ['Other roles', 'No access.'],
+  ]],
+  ['Physician List', 'The name-only roster that powers the physician autocomplete and the KPI physician total.', [
+    ['Developer', 'Exclusive: CSV upload, manual add, and delete.'],
+    ['Other roles', 'No access.'],
+  ]],
+  ['Audit Log', 'Immutable record of sensitive actions for compliance/forensics.', [
+    ['Developer', 'Exclusive: view the full audit trail.'],
+    ['Other roles', 'No access.'],
+  ]],
+  ['My Attendance', 'Physician self-service weekly attendance.', [
+    ['Physician', 'Proposes a weekly status (attended / leave / absent) for admin approval.'],
+    ['Other roles', 'Not applicable.'],
+  ]],
+  ['System Overview', 'This reference page.', [
+    ['All roles', 'Read access.'],
+  ]],
+];
+
 const KPI_GROUPS = [
   ['Coverage & Distribution', [
     ['Rotation Coverage Rate', 'Physicians with ≥1 assignment in the block ÷ total physicians × 100'],
@@ -110,6 +162,25 @@ export default function SystemOverview() {
             </tbody>
           </table>
         </div>
+      </Section>
+
+      <Section title="How each module works by role" subtitle="What each module does and how access differs by role. The dashboard and menus adjust automatically to the signed-in role.">
+        {MODULE_ACCESS.map(([name, desc, roles]) => (
+          <div key={name} className="mb-3">
+            <h6 className="text-primary mb-1">{name}</h6>
+            <p className="text-muted small mb-2">{desc}</p>
+            <table className="table table-sm mb-0">
+              <tbody>
+                {roles.map(([role, access]) => (
+                  <tr key={role}>
+                    <td style={{ width: '38%' }}>{role}</td>
+                    <td className="small">{access}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
       </Section>
 
       <Section title="Sites & departments">
