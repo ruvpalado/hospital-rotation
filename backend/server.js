@@ -352,6 +352,28 @@ async function ensureLeaveSites() {
   console.log('[startup] Ensured Annual Leave / Maternity Leave / Interruption site options');
 }
 
+// Additively ensure specific site->department links exist on the live database
+// WITHOUT the destructive full rebuild that /api/departments/sync performs
+// (which deletes every SiteDepartment and the schedules referencing them).
+// Idempotent: findOrCreate leaves existing links untouched. Currently ensures
+// CLINIC (GYNE Clinic) and DS (Delivery Suite) are offered at Khoula Hospital.
+async function ensureSiteDepartmentLinks() {
+  const LINKS = [{ site: 'KH', departments: ['CLINIC', 'DS'] }];
+  for (const { site: siteCode, departments } of LINKS) {
+    const site = await Site.findOne({ where: { short_code: siteCode } });
+    if (!site) continue;
+    for (const code of departments) {
+      const dept = await Department.findOne({ where: { code } });
+      if (!dept) continue;
+      await SiteDepartment.findOrCreate({
+        where: { site_id: site.id, department_id: dept.id },
+        defaults: { site_id: site.id, department_id: dept.id, capacity_per_block: 2 },
+      });
+    }
+  }
+  console.log('[startup] Ensured CLINIC and DS departments at Khoula Hospital');
+}
+
 async function start() {
   try {
     await sequelize.authenticate();
@@ -363,6 +385,7 @@ async function start() {
     await ensureDeveloperAccount();
     await ensureProgramAdministratorRole();
     await ensureLeaveSites();
+    await ensureSiteDepartmentLinks();
     app.listen(PORT, () => console.log(`Hospital Rotation API listening on port ${PORT}`));
   } catch (err) {
     console.error('Failed to start server:', err);
